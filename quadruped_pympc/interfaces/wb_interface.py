@@ -16,7 +16,7 @@ from quad_pympc.quadruped_pympc.helpers.velocity_modulator import VelocityModula
 from quad_pympc.quadruped_pympc.helpers.early_stance_detector import EarlyStanceDetector
 
 if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
-    from quadruped_pympc.helpers.visual_foothold_adaptation import VisualFootholdAdaptation
+    from quad_pympc.quadruped_pympc.helpers.visual_foothold_adaptation import VisualFootholdAdaptation
 
 
 class WBInterface:

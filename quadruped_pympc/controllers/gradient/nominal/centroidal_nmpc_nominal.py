@@ -12,8 +12,7 @@ import casadi as cs
 import numpy as np
 import scipy.linalg
 
-import quadruped_pympc.config as config
-
+import config as config
 from .centroidal_model_nominal import Centroidal_Model_Nominal
 
 
