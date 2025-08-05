@@ -25,12 +25,10 @@ class SRBDControllerInterface:
         self.gait_phase = get_gait_phase(self.sim_param)
 
         if self.sim_param["controller"] == "NMPCController":
-            from controllers.foothold_planner.nominal.centroidal_nmpc_nominal import Acados_NMPC_Nominal
-
+            from quad_pympc.quadruped_pympc.controllers.gradient.nominal.centroidal_nmpc_nominal import Acados_NMPC_Nominal
             self.controller = Acados_NMPC_Nominal()
         elif self.sim_param["controller"] == "DefaultController":
             from controllers.foothold_planner.defaultController import DefaultController
-
             self.controller = DefaultController(self.gait_phase)
 
         
