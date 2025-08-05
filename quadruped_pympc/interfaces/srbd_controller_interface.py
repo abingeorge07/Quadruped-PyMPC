@@ -12,8 +12,6 @@ class SRBDControllerInterface:
         self.type = cfg.mpc_params['type']
         self.mpc_dt = cfg.mpc_params['dt']
         self.horizon = cfg.mpc_params['horizon']
-        self.optimize_step_freq = cfg.mpc_params['optimize_step_freq']
-        self.step_freq_available = cfg.mpc_params['step_freq_available']
 
         # Contact MPC
         self.previous_contact_mpc = np.array([1, 1, 1, 1])
@@ -42,7 +40,7 @@ class SRBDControllerInterface:
         ref_state: dict,
         contact_sequence: np.ndarray,
         inertia: np.ndarray,
-        external_wrenches: np.ndarray = np.zeros((6,)),
+        external_wrenches: np.ndarray = np.zeros((6,))
     ):
         """Compute the control using the SRBD method
 

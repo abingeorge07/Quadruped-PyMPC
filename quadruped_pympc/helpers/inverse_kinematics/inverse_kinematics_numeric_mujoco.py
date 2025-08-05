@@ -10,26 +10,23 @@ import copy
 import os
 import time
 
-import gym_quadruped
+
 
 # Mujoco magic
 import mujoco
 import mujoco.viewer
 
 # Adam and Liecasadi magic
-
-import gym_quadruped
+import config as cfg
 import os
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-gym_quadruped_path = os.path.dirname(gym_quadruped.__file__)
 
 
-from quadruped_pympc import config as cfg
 
-from gym_quadruped.quadruped_env import QuadrupedEnv
+import config as cfg
 
-from quadruped_pympc import config as cfg
+
 
 IT_MAX = 5
 DT = 1e-2
@@ -47,12 +44,77 @@ class InverseKinematicsNumeric:
 
         """
 
+        robot_dir = os.getcwd() + "/models/quadrupeds/"
+
         robot_name = cfg.robot
 
-        # Create the quadruped robot environment ---------------------
-        self.env = QuadrupedEnv(
-            robot=robot_name,
-        )
+        robot_path = robot_dir + robot_name + "/" + robot_name + ".xml"
+
+        # Load the MuJoCo model and data
+        self.model = mujoco.MjModel.from_xml_path(robot_path)
+        self.data = mujoco.MjData(self.model)
+
+        # Get feet body id
+        self.feet_geom_id, self.feet_body_id = self.get_feet_body_id()
+
+    # Get the feet body ids
+    def get_feet_body_id(self):
+
+        # Initialize a dictionary to store the feet positions
+        feet_geom_id = {}
+        feet_body_id = {}
+
+        foot_names = cfg.toe_names_geom
+
+        for leg in cfg.leg_names:
+            mujoco_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, foot_names[leg])
+            feet_geom_id[leg] = mujoco_id
+            feet_body_id[leg] = self.model.geom_bodyid[mujoco_id]
+
+        return feet_geom_id, feet_body_id
+
+    # Get the joint positions in world frame
+    def get_feet_positions_mujoco(self):
+        """
+        Get the feet positions in world frame using MuJoCo body xpos.
+        Returns:
+            dict: A dictionary containing the feet positions for each leg.
+        """
+
+        # Initialize a dictionary to store the feet positions
+        feet_pos = {}
+
+        foot_names = cfg.toe_names_geom
+
+        for leg in cfg.leg_names:
+            mujoco_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, foot_names[leg])
+            feet_pos[leg] = self.data.geom_xpos[mujoco_id]
+
+        return feet_pos
+    
+    # Get feet jacobians
+    def get_feet_jacobians(self):
+        
+
+        feet_trans_jac = {}
+        feet_rot_jac = {}
+
+        # Get the feet positions in world frame
+        feet_pos = self.get_feet_positions_mujoco()
+
+        for leg in cfg.leg_names:
+            feet_trans_jac[leg] = np.zeros((3, self.model.nv))
+            feet_rot_jac[leg] = np.zeros((3, self.model.nv))
+            mujoco.mj_jac(
+                m=self.model,
+                d=self.data,
+                jacp=feet_trans_jac[leg],
+                jacr=feet_rot_jac[leg],
+                point=feet_pos[leg],
+                body=self.feet_body_id[leg],
+            )
+
+        return feet_trans_jac, feet_rot_jac
 
     def compute_solution(
         self,
@@ -77,16 +139,16 @@ class InverseKinematicsNumeric:
         """
 
         # Set the initial states
-        self.env.mjData.qpos = q
-        mujoco.mj_fwdPosition(self.env.mjModel, self.env.mjData)
+        self.data.qpos = q
+        mujoco.mj_fwdPosition(self.model, self.data)
 
         for j in range(IT_MAX):
-            feet_pos = self.env.feet_pos(frame='world')
+            feet_pos = self.get_feet_positions_mujoco()
 
-            FL_foot_actual_pos = feet_pos.FL
-            FR_foot_actual_pos = feet_pos.FR
-            RL_foot_actual_pos = feet_pos.RL
-            RR_foot_actual_pos = feet_pos.RR
+            FL_foot_actual_pos = feet_pos["FL"]
+            FR_foot_actual_pos = feet_pos["FR"]
+            RL_foot_actual_pos = feet_pos["RL"]
+            RR_foot_actual_pos = feet_pos["RR"]
 
             err_FL = FL_foot_target_position - FL_foot_actual_pos
             err_FR = FR_foot_target_position - FR_foot_actual_pos
@@ -95,12 +157,12 @@ class InverseKinematicsNumeric:
 
 
             # Compute feet jacobian
-            feet_jac = self.env.feet_jacobians(frame='world', return_rot_jac=False)
-        
-            J_FL = feet_jac.FL[:, 6:]
-            J_FR = feet_jac.FR[:, 6:]
-            J_RL = feet_jac.RL[:, 6:]
-            J_RR = feet_jac.RR[:, 6:]
+            feet_jac, _ = self.get_feet_jacobians()
+
+            J_FL = feet_jac["FL"][:, 6:]
+            J_FR = feet_jac["FR"][:, 6:]
+            J_RL = feet_jac["RL"][:, 6:]
+            J_RR = feet_jac["RR"][:, 6:]
 
             total_jac = np.vstack((J_FL, J_FR, J_RL, J_RR))
             total_err = 100*np.hstack((err_FL, err_FR, err_RL, err_RR))
@@ -111,91 +173,13 @@ class InverseKinematicsNumeric:
             dq = damped_pinv @ total_err
 
             # Integrate joint velocities to obtain joint positions.
-            q_joint = self.env.mjData.qpos.copy()[7:]
+            q_joint = self.data.qpos.copy()[7:]
             q_joint += dq * DT
-            self.env.mjData.qpos[7:] = q_joint
+            self.data.qpos[7:] = q_joint
 
-            mujoco.mj_fwdPosition(self.env.mjModel, self.env.mjData)
-            #mujoco.mj_kinematics(self.env.mjModel, self.env.mjData)
-            #mujoco.mj_step(self.env.mjModel, self.env.mjData)
+            mujoco.mj_fwdPosition(self.model, self.data)
+            #mujoco.mj_kinematics(self.model, self.env.mjData)
+            #mujoco.mj_step(self.model, self.env.mjData)
 
         return q_joint
 
-
-if __name__ == "__main__":
-    if cfg.robot == 'go2':
-        xml_filename = gym_quadruped_path + '/robot_model/go2/go2.xml'
-    if cfg.robot == 'go1':
-        xml_filename = gym_quadruped_path + '/robot_model/go1/go1.xml'
-    elif cfg.robot == 'aliengo':
-        xml_filename = gym_quadruped_path + '/robot_model/aliengo/aliengo.xml'
-    elif cfg.robot == 'hyqreal':
-        xml_filename = gym_quadruped_path + '/robot_model/hyqreal/hyqreal.xml'
-    elif cfg.robot == 'mini_cheetah':
-        xml_filename = gym_quadruped_path + '/robot_model/mini_cheetah/mini_cheetah.xml'
-
-    ik = InverseKinematicsNumeric()
-
-    # Check consistency in mujoco
-    m = mujoco.MjModel.from_xml_path(xml_filename)
-    d = mujoco.MjData(m)
-
-    random_q_joint = np.random.rand(12)
-    d.qpos[7:] = random_q_joint
-
-    # random quaternion
-    rand_quat = np.random.rand(4)
-    rand_quat = rand_quat / np.linalg.norm(rand_quat)
-    d.qpos[3:7] = rand_quat
-
-    mujoco.mj_fwdPosition(m, d)
-
-    FL_id = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "FL")
-    FR_id = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "FR")
-    RL_id = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "RL")
-    RR_id = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "RR")
-    FL_foot_target_position = d.geom_xpos[FL_id]
-    FR_foot_target_position = d.geom_xpos[FR_id]
-    RL_foot_target_position = d.geom_xpos[RL_id]
-    RR_foot_target_position = d.geom_xpos[RR_id]
-
-    print("FL foot target position: ", FL_foot_target_position)
-    print("FR foot target position: ", FR_foot_target_position)
-    print("RL foot target position: ", RL_foot_target_position)
-    print("RR foot target position: ", RR_foot_target_position)
-
-    initial_q = copy.deepcopy(d.qpos)
-    initial_q[7:] = np.random.rand(12)
-
-    ik.env.mjData.qpos = initial_q
-    mujoco.mj_fwdPosition(ik.env.mjModel, ik.env.mjData)
-    feet = ik.env.feet_pos(frame="world")
-
-    #print("joints start position: ", initial_q)
-    print("FL foot start position", feet.FL)
-    print("FR foot start position", feet.FR)
-    print("RL foot start position", feet.RL)
-    print("RR foot start position", feet.RR)
-
-    initial_time = time.time()
-    solution = ik.compute_solution(
-        initial_q, FL_foot_target_position, FR_foot_target_position, RL_foot_target_position, RR_foot_target_position
-    )
-    print("time: ", time.time() - initial_time)
-
-
-    print("\n")
-    print("MUJOCO IK SOLUTION")
-    ik.env.mjData.qpos[7:] = solution
-    mujoco.mj_fwdPosition(ik.env.mjModel, ik.env.mjData)
-    feet = ik.env.feet_pos(frame="world")
-
-    #print("joints solution: ", ik.env.mjData.qpos)
-    print("FL foot solution position", feet.FL)
-    print("FR foot solution position", feet.FR)
-    print("RL foot solution position", feet.RL)
-    print("RR foot solution position", feet.RR)
-
-    with mujoco.viewer.launch_passive(m, d) as viewer:
-        while True:
-            viewer.sync()

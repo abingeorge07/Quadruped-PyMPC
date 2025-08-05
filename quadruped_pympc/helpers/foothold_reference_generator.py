@@ -6,8 +6,8 @@ import numpy as np
 from gym_quadruped.utils.quadruped_utils import LegsAttr
 from scipy.spatial.transform import Rotation
 
-from quadruped_pympc.helpers.quadruped_utils import GaitType
-from quadruped_pympc import config as cfg
+from quad_pympc.quadruped_pympc.helpers.quadruped_utils import GaitType
+import config as cfg
 
 # Class for the generation of the reference footholds
 # TODO: @Giulio Should we convert this to a single function instead of a class? Stance time, can be passed as argument
@@ -114,10 +114,10 @@ class FootholdReferenceGenerator:
         ref_feet = LegsAttr(*[np.zeros(3) for _ in range(4)])
 
         # Reference feet positions are computed from the hips x,y position in the hip-centric/Horizontal frame
-        ref_feet.FL[0:2] = R_W2H @ (hips_position.FL[0:2] - base_position[0:2])
-        ref_feet.FR[0:2] = R_W2H @ (hips_position.FR[0:2] - base_position[0:2])
-        ref_feet.RL[0:2] = R_W2H @ (hips_position.RL[0:2] - base_position[0:2])
-        ref_feet.RR[0:2] = R_W2H @ (hips_position.RR[0:2] - base_position[0:2])
+        ref_feet.FL[0:2] = R_W2H @ (hips_position['FL'][0:2] - base_position[0:2])
+        ref_feet.FR[0:2] = R_W2H @ (hips_position['FR'][0:2] - base_position[0:2])
+        ref_feet.RL[0:2] = R_W2H @ (hips_position['RL'][0:2] - base_position[0:2])
+        ref_feet.RR[0:2] = R_W2H @ (hips_position['RR'][0:2] - base_position[0:2])
         # Offsets are introduced to account for x,y offsets from nominal hip and feet positions.
         # Offsets to the Y axis result in wider/narrower stance (+y values lead to wider stance in left/right)
         # Offsets to the X axis result in spread/crossed legs (+x values lead to spread legs in front/back)

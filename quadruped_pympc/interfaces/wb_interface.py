@@ -5,17 +5,17 @@ import numpy as np
 from gym_quadruped.utils.quadruped_utils import LegsAttr
 from scipy.spatial.transform import Rotation as R
 
-from quadruped_pympc import config as cfg
-from quadruped_pympc.helpers.foothold_reference_generator import FootholdReferenceGenerator
+import config as cfg
+from quad_pympc.quadruped_pympc.helpers.foothold_reference_generator import FootholdReferenceGenerator
 #from quadruped_pympc.helpers.inverse_kinematics.inverse_kinematics_numeric_adam import InverseKinematicsNumeric
-from quadruped_pympc.helpers.inverse_kinematics.inverse_kinematics_numeric_mujoco import InverseKinematicsNumeric
-from quadruped_pympc.helpers.periodic_gait_generator import PeriodicGaitGenerator
-from quadruped_pympc.helpers.swing_trajectory_controller import SwingTrajectoryController
-from quadruped_pympc.helpers.terrain_estimator import TerrainEstimator
-from quadruped_pympc.helpers.velocity_modulator import VelocityModulator
-from quadruped_pympc.helpers.early_stance_detector import EarlyStanceDetector
+from quad_pympc.quadruped_pympc.helpers.inverse_kinematics.inverse_kinematics_numeric_mujoco import InverseKinematicsNumeric
+from quad_pympc.quadruped_pympc.helpers.periodic_gait_generator import PeriodicGaitGenerator
+from quad_pympc.quadruped_pympc.helpers.swing_trajectory_controller import SwingTrajectoryController
+from quad_pympc.quadruped_pympc.helpers.terrain_estimator import TerrainEstimator
+from quad_pympc.quadruped_pympc.helpers.velocity_modulator import VelocityModulator
+from quad_pympc.quadruped_pympc.helpers.early_stance_detector import EarlyStanceDetector
 
-if cfg.simulation_params['visual_foothold_adaptation'] != 'blind':
+if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
     from quadruped_pympc.helpers.visual_foothold_adaptation import VisualFootholdAdaptation
 
 
@@ -27,9 +27,9 @@ class WBInterface:
     """
 
     def __init__(self,
-                 initial_feet_pos: LegsAttr,
-                 legs_order: tuple[str, str, str, str] = ('FL', 'FR', 'RL', 'RR'),
-                 feet_geom_id : LegsAttr = None):
+                 initial_feet_pos,
+                 legs_order,
+                 feet_geom_id):
         """Constructor of the WBInterface class
 
         Args:
@@ -42,8 +42,8 @@ class WBInterface:
         self.legs_order = legs_order
 
         # Periodic gait generator --------------------------------------------------------------
-        gait_name = cfg.simulation_params['gait']
-        gait_params = cfg.simulation_params['gait_params'][gait_name]
+        gait_name = cfg.sim_param['gait']
+        gait_params = cfg.sim_param['gait_params'][gait_name]
         gait_type, duty_factor, step_frequency = (
             gait_params['type'],
             gait_params['duty_factor'],
@@ -69,11 +69,11 @@ class WBInterface:
         )
 
         # Create swing trajectory generator ------------------------------------------------------
-        self.step_height = cfg.simulation_params['step_height']
+        self.step_height = cfg.sim_param['max_step_height']
         swing_period = (1 - self.pgg.duty_factor) * (1 / self.pgg.step_freq)
-        position_gain_fb = cfg.simulation_params['swing_position_gain_fb']
-        velocity_gain_fb = cfg.simulation_params['swing_velocity_gain_fb']
-        swing_generator = cfg.simulation_params['swing_generator']
+        position_gain_fb = cfg.sim_param['swing_position_gain_fb']
+        velocity_gain_fb = cfg.sim_param['swing_velocity_gain_fb']
+        swing_generator = cfg.sim_param['swing_generator']
         self.stc = SwingTrajectoryController(
             step_height=self.step_height,
             swing_period=swing_period,
@@ -90,10 +90,10 @@ class WBInterface:
         # Inverse Kinematics ---------------------------------------------------------------------
         self.ik = InverseKinematicsNumeric()
 
-        if cfg.simulation_params['visual_foothold_adaptation'] != 'blind':
+        if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
             # Visual foothold adaptation -------------------------------------------------------------
             self.vfa = VisualFootholdAdaptation(
-                legs_order=self.legs_order, adaptation_strategy=cfg.simulation_params['visual_foothold_adaptation']
+                legs_order=self.legs_order, adaptation_strategy=cfg.sim_param['visual_foothold_adaptation']
             )
 
         # Velocity modulator ---------------------------------------------------------------------
@@ -120,7 +120,6 @@ class WBInterface:
         simulation_dt: float,
         ref_base_lin_vel: np.ndarray,
         ref_base_ang_vel: np.ndarray,
-        mujoco_contact: np.ndarray = None,
     ) -> [dict, dict, list, LegsAttr, list, list, float, bool]:
         """Update the state and reference for the whole body controller, including the contact sequence, footholds, and terrain estimation.
 
@@ -155,14 +154,14 @@ class WBInterface:
             linear_velocity=base_lin_vel,
             orientation=base_ori_euler_xyz,
             angular_velocity=base_ang_vel,
-            foot_FL=feet_pos.FL,
-            foot_FR=feet_pos.FR,
-            foot_RL=feet_pos.RL,
-            foot_RR=feet_pos.RR,
-            joint_FL=joints_pos.FL,
-            joint_FR=joints_pos.FR,
-            joint_RL=joints_pos.RL,
-            joint_RR=joints_pos.RR,
+            foot_FL=feet_pos["FL"],
+            foot_FR=feet_pos["FR"],
+            foot_RL=feet_pos["RL"],
+            foot_RR=feet_pos["RR"],
+            joint_FL=joints_pos["FL"],
+            joint_FR=joints_pos["FR"],
+            joint_RL=joints_pos["RL"],
+            joint_RR=joints_pos["RR"],
         )
 
         # Modulate the desired velocity if the robot is in strange positions
@@ -223,11 +222,11 @@ class WBInterface:
             base_xy_lin_vel=base_lin_vel[0:2],
             ref_base_xy_lin_vel=ref_base_lin_vel[0:2],
             hips_position=hip_pos,
-            com_height_nominal=cfg.simulation_params['ref_z'],
+            com_height_nominal=cfg.sim_param['ref_z'],
         )
 
         # Adjust the footholds given the terrain -----------------------------------------------------
-        if cfg.simulation_params['visual_foothold_adaptation'] != 'blind':
+        if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
             time_adaptation = time.time()
             if self.stc.check_apex_condition(self.current_contact, interval=0.01) and self.vfa.initialized == False:
                 for leg_id, leg_name in enumerate(legs_order):
@@ -253,7 +252,7 @@ class WBInterface:
         )
 
         ref_pos = np.array([0, 0, cfg.hip_height])
-        ref_pos[2] = cfg.simulation_params["ref_z"] + terrain_height
+        ref_pos[2] = cfg.sim_param["ref_z"] + terrain_height
         
         # Rotate the reference base linear velocity to the terrain frame
         ref_base_lin_vel = R.from_euler("xyz", [terrain_roll, terrain_pitch, 0]).as_matrix() @ ref_base_lin_vel
@@ -389,12 +388,8 @@ class WBInterface:
 
         # -------------------------------------------------------------------------------------------------
 
-        if cfg.mpc_params['optimize_step_freq']:
-            # we can always optimize the step freq, or just at the apex of the swing
-            # to avoid possible jittering in the solution
-            optimize_swing = self.stc.check_touch_down_condition(self.current_contact, self.previous_contact)
-        else:
-            optimize_swing = 0
+      
+        optimize_swing = 0
 
         return state_current, ref_state, contact_sequence, self.step_height, optimize_swing
 
@@ -463,10 +458,10 @@ class WBInterface:
 
 
         # Compute Stance Torque ---------------------------------------------------------------------------
-        tau.FL = -np.matmul(feet_jac.FL[:, legs_qvel_idx.FL].T, nmpc_GRFs.FL)
-        tau.FR = -np.matmul(feet_jac.FR[:, legs_qvel_idx.FR].T, nmpc_GRFs.FR)
-        tau.RL = -np.matmul(feet_jac.RL[:, legs_qvel_idx.RL].T, nmpc_GRFs.RL)
-        tau.RR = -np.matmul(feet_jac.RR[:, legs_qvel_idx.RR].T, nmpc_GRFs.RR)
+        tau["FL"]= -np.matmul(feet_jac['FL'][:, legs_qvel_idx['FL']].T, nmpc_GRFs["FL"])
+        tau["FR"] = -np.matmul(feet_jac['FR'][:, legs_qvel_idx['FR']].T, nmpc_GRFs["FR"])
+        tau["RL"] = -np.matmul(feet_jac['RL'][:, legs_qvel_idx['RL']].T, nmpc_GRFs["RL"])
+        tau["RR"] = -np.matmul(feet_jac['RR'][:, legs_qvel_idx['RR']].T, nmpc_GRFs["RR"])
 
         self.stc.update_swing_time(self.current_contact, self.legs_order, simulation_dt)
 
@@ -539,10 +534,10 @@ class WBInterface:
             des_joints_pos.RR = np.array(temp[9:12]).reshape((3,))
 
             # TODO This should be done over the the desired joint positions jacobian
-            des_joints_vel.FL = np.linalg.pinv(feet_jac.FL[:, legs_qvel_idx.FL]) @ des_foot_vel.FL
-            des_joints_vel.FR = np.linalg.pinv(feet_jac.FR[:, legs_qvel_idx.FR]) @ des_foot_vel.FR
-            des_joints_vel.RL = np.linalg.pinv(feet_jac.RL[:, legs_qvel_idx.RL]) @ des_foot_vel.RL
-            des_joints_vel.RR = np.linalg.pinv(feet_jac.RR[:, legs_qvel_idx.RR]) @ des_foot_vel.RR
+            des_joints_vel.FL = np.linalg.pinv(feet_jac['FL'][:, legs_qvel_idx['FL']]) @ des_foot_vel.FL
+            des_joints_vel.FR = np.linalg.pinv(feet_jac['FR'][:, legs_qvel_idx['FR']]) @ des_foot_vel.FR
+            des_joints_vel.RL = np.linalg.pinv(feet_jac['RL'][:, legs_qvel_idx['RL']]) @ des_foot_vel.RL
+            des_joints_vel.RR = np.linalg.pinv(feet_jac['RR'][:, legs_qvel_idx['RR']]) @ des_foot_vel.RR
 
         else:
             # In the case of the kinodynamic model, we just use the NMPC predicted joints
@@ -585,7 +580,7 @@ class WBInterface:
         # self.stc.reset()
         # self.terrain_computation.reset()
         self.frg.lift_off_positions = initial_feet_pos
-        if cfg.simulation_params['visual_foothold_adaptation'] != 'blind':
+        if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
             self.vfa.reset()
         self.current_contact = np.array([1, 1, 1, 1])
         return

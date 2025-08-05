@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from quadruped_pympc import config as cfg
+import config as cfg
 
 class SwingTrajectoryGenerator:
     def __init__(self, step_height: float, swing_period: float) -> None:
@@ -15,7 +15,7 @@ class SwingTrajectoryGenerator:
         self.stepHeight = step_height
         self.reflex_next_steps_height_enhancement = False
 
-        if(cfg.simulation_params['visual_foothold_adaptation'] == 'blind'):
+        if(cfg.sim_param['visual_foothold_adaptation'] == 'blind'):
             self.z_height_enhancement = True
         else:
             self.z_height_enhancement = False
