@@ -9,8 +9,6 @@ class SRBDControllerInterface:
 
     def __init__(self):
         """Constructor for the SRBD controller interface"""
-
-        print("made an update here")
         self.type = cfg.mpc_params['type']
         self.mpc_dt = cfg.mpc_params['dt']
         self.horizon = cfg.mpc_params['horizon']
