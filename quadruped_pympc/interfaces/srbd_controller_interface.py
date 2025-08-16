@@ -69,8 +69,8 @@ class SRBDControllerInterface:
         nmpc_joints_vel = None
         nmpc_joints_acc = None
         
-        print(f"nmpc_GRFs: {nmpc_GRFs}")
-        input("Press Enter to continue...")
+        # print(f"nmpc_GRFs: {nmpc_GRFs}")
+        # input("Press Enter to continue...")
 
         # nmpc_footholds = LegsAttr(
         #     FL=nmpc_footholds[0], FR=nmpc_footholds[1], RL=nmpc_footholds[2], RR=nmpc_footholds[3]

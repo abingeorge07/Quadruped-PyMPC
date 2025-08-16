@@ -193,9 +193,6 @@ class WBInterface:
             contact_sequence_dts=self.contact_sequence_dts, contact_sequence_lenghts=self.contact_sequence_lenghts
         )
 
-        print(f"Contact sequence: {contact_sequence}")
-        input("Press Enter to continue...")
-
         self.previous_contact = copy.deepcopy(self.current_contact)
         self.current_contact = np.array(
             [contact_sequence[0][0], contact_sequence[1][0], contact_sequence[2][0], contact_sequence[3][0]]
