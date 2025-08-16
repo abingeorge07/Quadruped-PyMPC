@@ -58,6 +58,7 @@ class PeriodicGaitGenerator:
             # If we are still in init, we check if the delay of the leg
             # is not surpassed. If not, the contact needs to be still 1
             # otherwise we lift off
+
             if self._init[leg]:
                 if self._phase_signal[leg] <= self.phase_offset[leg]:
                     contact[leg] = 1

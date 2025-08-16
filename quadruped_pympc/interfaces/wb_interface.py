@@ -120,7 +120,7 @@ class WBInterface:
         simulation_dt: float,
         ref_base_lin_vel: np.ndarray,
         ref_base_ang_vel: np.ndarray,
-    ) -> [dict, dict, list, LegsAttr, list, list, float, bool]:
+    ):
         """Update the state and reference for the whole body controller, including the contact sequence, footholds, and terrain estimation.
 
         Args:
@@ -188,9 +188,13 @@ class WBInterface:
             )
 
         self.pgg.run(simulation_dt, self.pgg.step_freq)
+
         contact_sequence = self.pgg.compute_contact_sequence(
             contact_sequence_dts=self.contact_sequence_dts, contact_sequence_lenghts=self.contact_sequence_lenghts
         )
+
+        print(f"Contact sequence: {contact_sequence}")
+        input("Press Enter to continue...")
 
         self.previous_contact = copy.deepcopy(self.current_contact)
         self.current_contact = np.array(
@@ -266,7 +270,13 @@ class WBInterface:
 
         # Since the MPC close in CoM position, but usually we have desired height for the base,
         # we modify the reference to bring the base at the desired height and not the CoM
+        # print(f"ref_pos: {ref_pos}")
         ref_pos[2] -= base_pos[2] - (com_pos[2] + self.frg.com_pos_offset_w[2])
+        # print(self.frg.com_pos_offset_w)
+        # print(f"com_pos: {com_pos}")
+        # print(f"ref_pos: {ref_pos}")
+        # input("Press Enter to continue...")
+
 
         if cfg.mpc_params['type'] != 'kinodynamic':
             ref_state = {}
