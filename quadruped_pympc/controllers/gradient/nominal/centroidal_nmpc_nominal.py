@@ -1144,6 +1144,9 @@ class Acados_NMPC_Nominal:
         inertia=config.inertia.reshape((9,)),
         mass=config.mass,
     ):
+
+
+
         # Take the array of the contact sequence and split it in 4 arrays,
         # one for each leg
         FL_contact_sequence = contact_sequence[0]
@@ -1158,7 +1161,7 @@ class Acados_NMPC_Nominal:
 
         # Perform the scaling of the states and the reference
         state, reference, constraint = self.perform_scaling(state, reference, constraint)
-
+    
         # Fill reference (self.states_dim+self.inputs_dim)
         idx_ref_foot_to_assign = np.array([0, 0, 0, 0])
         for j in range(self.horizon):

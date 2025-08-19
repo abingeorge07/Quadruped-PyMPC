@@ -22,12 +22,20 @@ class SRBDControllerInterface:
         # Get the gait phase
         self.gait_phase = get_gait_phase(self.sim_param)
 
+        # Get the number of joints
+        self.num_joints = cfg.robot_params['num_joints']
+
         if self.sim_param["controller"] == "NMPCController":
             from quad_pympc.quadruped_pympc.controllers.gradient.nominal.centroidal_nmpc_nominal import Acados_NMPC_Nominal
             self.controller = Acados_NMPC_Nominal()
+
         elif self.sim_param["controller"] == "DefaultController":
-            from controllers.foothold_planner.defaultController import DefaultController
-            self.controller = DefaultController(self.gait_phase)
+            if(cfg.robot_params['num_joints'] == 12):   
+                from controllers.foothold_planner.defaultController import DefaultController
+                self.controller = DefaultController(self.gait_phase)
+            elif(cfg.robot_params['num_joints'] == 8):
+                from controllers.foothold_planner.dof_8.walk_main import simple_walk
+                self.controller = simple_walk(self.gait_phase, morphology=cfg.robot_params['morphology'])
 
         
 
@@ -38,8 +46,8 @@ class SRBDControllerInterface:
         self,
         state_current: dict,
         ref_state: dict,
-        contact_sequence: np.ndarray,
-        inertia: np.ndarray,
+        contact_sequence: np.ndarray = None,
+        inertia: np.ndarray = None,
         external_wrenches: np.ndarray = np.zeros((6,))
     ):
         """Compute the control using the SRBD method
@@ -59,32 +67,42 @@ class SRBDControllerInterface:
 
 
     
+        if(self.sim_param["controller"] == "NMPCController"):
+            # Get the the GRFs, foothold, joint positions, velocities, and accelerations
+            nmpc_GRFs, nmpc_footholds, nmpc_predicted_state, _ = self.controller.compute_control(
+                        state_current, ref_state, contact_sequence, inertia=inertia, external_wrenches=external_wrenches
+                    )
 
-        # Gethe the GRFs, foothold, joint positions, velocities, and accelerations
-        nmpc_GRFs, nmpc_footholds, nmpc_predicted_state, _ = self.controller.compute_control(
-                    state_current, ref_state, contact_sequence, inertia=inertia, external_wrenches=external_wrenches
-                )
+            nmpc_joints_pos = None
+            nmpc_joints_vel = None
+            nmpc_joints_acc = None
+    
+            # print("NMPC GRFs: ", nmpc_GRFs)
+            # print("NMPC Footholds: ", nmpc_footholds)
+            # print("NMPC Predicted State: ", nmpc_predicted_state)
+            # print("NMPC Joints Position: ", nmpc_joints_pos)
+            # print("NMPC Joints Velocity: ", nmpc_joints_vel)
+            # print("NMPC Joints Acceleration: ", nmpc_joints_acc)
+            
+            # input("Press Enter to continue...")
 
-        nmpc_joints_pos = None
-        nmpc_joints_vel = None
-        nmpc_joints_acc = None
+            return (
+                nmpc_GRFs,
+                nmpc_footholds,
+                nmpc_joints_pos,
+                nmpc_joints_vel,
+                nmpc_joints_acc,
+                nmpc_predicted_state,
+            )
         
-        # print(f"nmpc_GRFs: {nmpc_GRFs}")
-        # input("Press Enter to continue...")
+        
+        elif(self.sim_param["controller"] == "DefaultController"):
+                if(self.num_joints == 8):
+                    # Get the the GRFs, foothold, joint positions, velocities, and accelerations
+                    torque = self.controller.compute_control(state_current, ref_state)
 
-        # nmpc_footholds = LegsAttr(
-        #     FL=nmpc_footholds[0], FR=nmpc_footholds[1], RL=nmpc_footholds[2], RR=nmpc_footholds[3]
-        # )
-
-
-
-
-
-        return (
-            nmpc_GRFs,
-            nmpc_footholds,
-            nmpc_joints_pos,
-            nmpc_joints_vel,
-            nmpc_joints_acc,
-            nmpc_predicted_state,
-        )
+                    return torque
+                
+                elif(self.num_joints == 12):
+                    print("Default controller for 12 DOF not implemented yet")
+                    return None, None, None, None, None, None

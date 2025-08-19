@@ -456,7 +456,8 @@ class WBInterface:
             swing_period = (1 - self.pgg.duty_factor) * (1 / self.pgg.step_freq)
             self.stc.regenerate_swing_trajectory_generator(step_height=self.step_height, swing_period=swing_period)
 
-        
+        joints_per_limb = cfg.robot_params['joints_per_limb']
+
         # Update the Early Stance Detector for Reflexes
         self.esd.update_detection(feet_pos, self.last_des_foot_pos, lift_off=self.frg.lift_off_positions, touch_down=nmpc_footholds, 
                         swing_time=self.stc.swing_time, swing_period=self.stc.swing_period, 
@@ -535,10 +536,10 @@ class WBInterface:
                 qpos_predicted, des_foot_pos.FL, des_foot_pos.FR, des_foot_pos.RL, des_foot_pos.RR
             )
 
-            des_joints_pos.FL = np.array(temp[0:3]).reshape((3,))
-            des_joints_pos.FR = np.array(temp[3:6]).reshape((3,))
-            des_joints_pos.RL = np.array(temp[6:9]).reshape((3,))
-            des_joints_pos.RR = np.array(temp[9:12]).reshape((3,))
+            des_joints_pos.FL = np.array(temp[0:joints_per_limb]).reshape((joints_per_limb,))
+            des_joints_pos.FR = np.array(temp[joints_per_limb:2*joints_per_limb]).reshape((joints_per_limb,))
+            des_joints_pos.RL = np.array(temp[2*joints_per_limb:3*joints_per_limb]).reshape((joints_per_limb,))
+            des_joints_pos.RR = np.array(temp[3*joints_per_limb:4*joints_per_limb]).reshape((joints_per_limb,))
 
             # TODO This should be done over the the desired joint positions jacobian
             des_joints_vel.FL = np.linalg.pinv(feet_jac['FL'][:, legs_qvel_idx['FL']]) @ des_foot_vel.FL

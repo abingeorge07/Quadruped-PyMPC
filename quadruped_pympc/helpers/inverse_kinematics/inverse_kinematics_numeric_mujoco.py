@@ -31,7 +31,8 @@ import config as cfg
 IT_MAX = 5
 DT = 1e-2
 damp = 1e-3
-damp_matrix = damp * np.eye(12)
+num_joints = int(cfg.robot_params['num_joints'])
+damp_matrix = damp * np.eye(num_joints)
 
 
 # Class for solving a generic inverse kinematics problem
@@ -90,6 +91,7 @@ class InverseKinematicsNumeric:
             mujoco_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, foot_names[leg])
             feet_pos[leg] = self.data.geom_xpos[mujoco_id]
 
+
         return feet_pos
     
     # Get feet jacobians
@@ -113,6 +115,7 @@ class InverseKinematicsNumeric:
                 point=feet_pos[leg],
                 body=self.feet_body_id[leg],
             )
+
 
         return feet_trans_jac, feet_rot_jac
 
@@ -158,6 +161,7 @@ class InverseKinematicsNumeric:
 
             # Compute feet jacobian
             feet_jac, _ = self.get_feet_jacobians()
+
 
             J_FL = feet_jac["FL"][:, 6:]
             J_FR = feet_jac["FR"][:, 6:]
