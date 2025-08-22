@@ -19,7 +19,8 @@ from .centroidal_model_nominal import Centroidal_Model_Nominal
 # Class for the Acados NMPC, the model is in another file!
 class Acados_NMPC_Nominal:
     def __init__(self):
-        self.horizon = config.mpc_params['horizon']  # Define the number of discretization steps
+        # Define the number of discretization steps
+        self.horizon = config.mpc_params['horizon']  
         self.dt = config.mpc_params['dt']
         self.T_horizon = self.horizon * self.dt
         self.use_RTI = config.mpc_params["use_RTI"]
