@@ -1,10 +1,8 @@
 # Description: This file contains the class Centroidal_Model that defines the
 # prediction model used by the MPC
-
 # Authors: Giulio Turrisi -
 
 import time
-
 import jax
 import jax.numpy as jnp
 from jax import jit, random
