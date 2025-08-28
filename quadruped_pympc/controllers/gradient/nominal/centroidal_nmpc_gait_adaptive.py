@@ -13,7 +13,7 @@ from acados_template import AcadosOcp, AcadosOcpBatchSolver
 
 ACADOS_INFTY = 1000
 
-from quadruped_pympc import config
+import config
 
 from .centroidal_model_nominal import Centroidal_Model_Nominal
 

@@ -396,8 +396,14 @@ class WBInterface:
         # -------------------------------------------------------------------------------------------------
 
       
-        optimize_swing = 0
+        if cfg.mpc_params['optimize_step_freq']:
+            # we can always optimize the step freq, or just at the apex of the swing
+            # to avoid possible jittering in the solution
+            optimize_swing = self.stc.check_apex_condition(self.current_contact)
+        else:
+            optimize_swing = 0
 
+    
         return state_current, ref_state, contact_sequence, self.step_height, optimize_swing
 
     def compute_stance_and_swing_torque(
@@ -483,6 +489,7 @@ class WBInterface:
                 if (
                     self.current_contact[leg_id] == 0
                 ):  # If in swing phase, compute the swing trajectory tracking control.
+
                     tau[leg_name], des_foot_pos[leg_name], des_foot_vel[leg_name] = (
                         self.stc.compute_swing_control_cartesian_space(
                             leg_id=leg_id,

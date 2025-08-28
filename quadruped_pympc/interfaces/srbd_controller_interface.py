@@ -25,9 +25,18 @@ class SRBDControllerInterface:
         # Get the number of joints
         self.num_joints = cfg.robot_params['num_joints']
 
+        # Whether to optimize the step frequency
+        self.optimize_step_freq = cfg.mpc_params['optimize_step_freq']
+
         if self.sim_param["controller"] == "NMPCController":
             from quad_pympc.quadruped_pympc.controllers.gradient.nominal.centroidal_nmpc_nominal import Acados_NMPC_Nominal
             self.controller = Acados_NMPC_Nominal()
+
+            if self.optimize_step_freq:
+                from quad_pympc.quadruped_pympc.controllers.gradient.nominal.centroidal_nmpc_gait_adaptive import Acados_NMPC_GaitAdaptive
+                self.batched_controller = Acados_NMPC_GaitAdaptive()
+               
+
 
         elif self.sim_param["controller"] == "DefaultController":
             if(cfg.robot_params['num_joints'] == 12):   
@@ -77,14 +86,6 @@ class SRBDControllerInterface:
             nmpc_joints_vel = None
             nmpc_joints_acc = None
     
-            # print("NMPC GRFs: ", nmpc_GRFs)
-            # print("NMPC Footholds: ", nmpc_footholds)
-            # print("NMPC Predicted State: ", nmpc_predicted_state)
-            # print("NMPC Joints Position: ", nmpc_joints_pos)
-            # print("NMPC Joints Velocity: ", nmpc_joints_vel)
-            # print("NMPC Joints Acceleration: ", nmpc_joints_acc)
-            
-            # input("Press Enter to continue...")
 
             return (
                 nmpc_GRFs,
