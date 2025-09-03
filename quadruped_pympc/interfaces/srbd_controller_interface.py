@@ -85,6 +85,7 @@ class SRBDControllerInterface:
             nmpc_joints_pos = None
             nmpc_joints_vel = None
             nmpc_joints_acc = None
+
     
 
             return (
@@ -101,9 +102,11 @@ class SRBDControllerInterface:
                 if(self.num_joints == 8):
                     # Get the the GRFs, foothold, joint positions, velocities, and accelerations
                     torque = self.controller.compute_control(state_current, ref_state)
+                    
 
                     return torque
                 
                 elif(self.num_joints == 12):
-                    print("Default controller for 12 DOF not implemented yet")
-                    return None, None, None, None, None, None
+                    # Get the the GRFs, foothold, joint positions, velocities, and accelerations
+                    grfs, foot_pos = self.controller.compute_control(state_current, ref_state, contact_sequence, inertia)
+                    return grfs, foot_pos

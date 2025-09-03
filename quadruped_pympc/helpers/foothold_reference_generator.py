@@ -101,7 +101,7 @@ class FootholdReferenceGenerator:
 
         # Compensation due to desired velocity
         delta_ref_H = (self.stance_time / 2.0) * ref_base_lin_vel_H
-        delta_ref_H = np.clip(delta_ref_H, -self.hip_height * 1.5, self.hip_height * 1.5)
+        delta_ref_H = np.clip(delta_ref_H, -self.hip_height * 1.0, self.hip_height * 1.0)
         vel_offset = np.concatenate((delta_ref_H, np.zeros(1)))
 
         # Compensation for the error in velocity tracking
@@ -129,7 +129,12 @@ class FootholdReferenceGenerator:
         ref_feet.RR[1] -= self.hip_offset
 
         # Add the velocity compensation and desired velocity to the feet positions
-        ref_feet += vel_offset + error_compensation  # Add offset to all feet
+        
+        delta_offset = vel_offset + error_compensation  # Add offset to all feet
+
+        # new_delta_offset = np.clip(delta_offset, -cfg.robot_params['max_step_length'], cfg.robot_params['max_step_length'])
+
+        ref_feet += delta_offset
 
         # Reference footholds in world frame
         ref_feet.FL[0:2] = R_W2H.T @ ref_feet.FL[:2] + base_position[0:2]
@@ -153,7 +158,7 @@ class FootholdReferenceGenerator:
         # Update the last reference footholds to the current ones in order
         # to keep track of the modifcations done to vision (if any)
         self.last_reference_footholds = copy.deepcopy(ref_feet)
-        
+
         return ref_feet
 
     def update_lift_off_positions(

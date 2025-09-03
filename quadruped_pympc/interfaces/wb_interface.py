@@ -599,3 +599,142 @@ class WBInterface:
             self.vfa.reset()
         self.current_contact = np.array([1, 1, 1, 1])
         return
+    
+
+
+    def compute_stance_and_swing_torque_default(
+        self,
+        simulation_dt: float,
+        qpos: np.ndarray,
+        qvel: np.ndarray,
+        feet_jac: LegsAttr,
+        feet_jac_dot: LegsAttr,
+        feet_pos: LegsAttr,
+        feet_vel: LegsAttr,
+        legs_qfrc_passive: LegsAttr,
+        legs_qfrc_bias: LegsAttr,
+        legs_mass_matrix: LegsAttr,
+        nmpc_GRFs: LegsAttr,
+        nmpc_footholds: LegsAttr,
+        legs_qpos_idx: LegsAttr,
+        legs_qvel_idx: LegsAttr,
+        tau: LegsAttr,
+        optimize_swing: int,
+        best_sample_freq: float,
+        nmpc_joints_pos,
+        nmpc_joints_vel,
+        nmpc_joints_acc,
+        nmpc_predicted_state,
+        mujoco_contact: np.ndarray = None,
+    ) -> LegsAttr:
+        """Compute the stance and swing torque.
+
+        Args:
+            simulation_dt (float): simulation time step
+            qvel (np.ndarray): joint velocities
+            feet_jac (LegsAttr): feet jacobian
+            feet_jac_dot (LegsAttr): derivative of the jacobian
+            feet_pos (LegsAttr): feet positions in world frame
+            feet_vel (LegsAttr): feet velocities in world frame
+            legs_qfrc_passive (LegsAttr): passive forces and torques
+            legs_qfrc_bias (LegsAttr): joint forces and torques
+            legs_mass_matrix (LegsAttr): mass matrix of the legs
+            nmpc_GRFs (LegsAttr): ground reaction forces from the MPC in world frame
+            nmpc_footholds (LegsAttr): footholds from the MPC in world frame
+            legs_qvel_idx (LegsAttr): joint velocities index
+            tau (LegsAttr): joint torques
+            optimize_swing (int): flag to signal that we need to update the swing trajectory time
+            best_sample_freq (float): best sample frequency obtained from the
+                                      sampling optimization or the batched ocp
+
+        Returns:
+            LegsAttr: joint torques
+        """
+
+        # If we have optimized the gait, we set all the timing parameters
+        if optimize_swing == 1:
+            self.pgg.step_freq = np.array([best_sample_freq])[0]
+            self.frg.stance_time = (1 / self.pgg.step_freq) * self.pgg.duty_factor
+            swing_period = (1 - self.pgg.duty_factor) * (1 / self.pgg.step_freq)
+            self.stc.regenerate_swing_trajectory_generator(step_height=self.step_height, swing_period=swing_period)
+
+        joints_per_limb = cfg.robot_params['joints_per_limb']
+
+        # Update the Early Stance Detector for Reflexes
+        self.esd.update_detection(feet_pos, self.last_des_foot_pos, lift_off=self.frg.lift_off_positions, touch_down=nmpc_footholds, 
+                        swing_time=self.stc.swing_time, swing_period=self.stc.swing_period, 
+                        current_contact=self.current_contact, previous_contact=self.previous_contact, mujoco_contact=mujoco_contact,
+                        stc=self.stc)
+
+
+        # Compute Stance Torque ---------------------------------------------------------------------------
+        tau["FL"]= -np.matmul(feet_jac['FL'][:, legs_qvel_idx['FL']].T, nmpc_GRFs["FL"])
+        tau["FR"] = -np.matmul(feet_jac['FR'][:, legs_qvel_idx['FR']].T, nmpc_GRFs["FR"])
+        tau["RL"] = -np.matmul(feet_jac['RL'][:, legs_qvel_idx['RL']].T, nmpc_GRFs["RL"])
+        tau["RR"] = -np.matmul(feet_jac['RR'][:, legs_qvel_idx['RR']].T, nmpc_GRFs["RR"])
+
+        self.stc.update_swing_time(self.current_contact, self.legs_order, simulation_dt)
+
+        # Compute Swing Torque ------------------------------------------------------------------------------
+        des_foot_pos = LegsAttr(*[np.zeros((3,)) for _ in range(4)])
+        des_foot_vel = LegsAttr(*[np.zeros((3,)) for _ in range(4)])
+
+        # The swing controller is in the end-effector space
+        for leg_id, leg_name in enumerate(self.legs_order):
+            des_foot_pos[leg_name] = nmpc_footholds[leg_name]
+            # des_foot_pos[leg_name] = self.frg.touch_down_positions[leg_name]
+            des_foot_vel[leg_name] = des_foot_vel[leg_name] * 0.0
+
+
+        self.last_des_foot_pos = des_foot_pos
+
+        # Compute PD targets for the joints ----------------------------------------------------------------
+        des_joints_pos = LegsAttr(*[np.zeros((3, 1)) for _ in range(4)])
+        des_joints_vel = LegsAttr(*[np.zeros((3, 1)) for _ in range(4)])
+        
+
+        qpos_predicted = copy.deepcopy(qpos)
+        # TODO use predicted rotation too
+        # qpos_predicted[0:3] = nmpc_predicted_state[0:3]
+        # TODO make the ik explicit and not numerical
+        #temp = self.ik.fun_compute_solution(
+        temp = self.ik.compute_solution(
+            qpos_predicted, des_foot_pos.FL, des_foot_pos.FR, des_foot_pos.RL, des_foot_pos.RR
+        )
+
+        des_joints_pos.FL = np.array(temp[0:joints_per_limb]).reshape((joints_per_limb,))
+        des_joints_pos.FR = np.array(temp[joints_per_limb:2*joints_per_limb]).reshape((joints_per_limb,))
+        des_joints_pos.RL = np.array(temp[2*joints_per_limb:3*joints_per_limb]).reshape((joints_per_limb,))
+        des_joints_pos.RR = np.array(temp[3*joints_per_limb:4*joints_per_limb]).reshape((joints_per_limb,))
+
+        # TODO This should be done over the the desired joint positions jacobian
+        des_joints_vel.FL = np.linalg.pinv(feet_jac['FL'][:, legs_qvel_idx['FL']]) @ des_foot_vel.FL
+        des_joints_vel.FR = np.linalg.pinv(feet_jac['FR'][:, legs_qvel_idx['FR']]) @ des_foot_vel.FR
+        des_joints_vel.RL = np.linalg.pinv(feet_jac['RL'][:, legs_qvel_idx['RL']]) @ des_foot_vel.RL
+        des_joints_vel.RR = np.linalg.pinv(feet_jac['RR'][:, legs_qvel_idx['RR']]) @ des_foot_vel.RR
+
+    
+
+        # Saturate of desired joint positions and velocities
+        max_joints_pos_difference = 3.0
+        max_joints_vel_difference = 10.0
+
+        # Calculate the difference
+        actual_joints_pos = LegsAttr(**{leg_name: qpos[legs_qpos_idx[leg_name]] for leg_name in self.legs_order})
+        actual_joints_vel = LegsAttr(**{leg_name: qvel[legs_qvel_idx[leg_name]] for leg_name in self.legs_order})
+
+        # Saturate the difference for each leg
+        for leg in ["FL", "FR", "RL", "RR"]:
+            joints_pos_difference = des_joints_pos[leg] - actual_joints_pos[leg]
+            saturated_joints_pos_difference = np.clip(
+                joints_pos_difference, -max_joints_pos_difference, max_joints_pos_difference
+            )
+            des_joints_pos[leg] = actual_joints_pos[leg] + saturated_joints_pos_difference
+
+            joints_vel_difference = des_joints_vel[leg] - actual_joints_vel[leg]
+            saturated_joints_vel_difference = np.clip(
+                joints_vel_difference, -max_joints_vel_difference, max_joints_vel_difference
+            )
+            des_joints_vel[leg] = actual_joints_vel[leg] + saturated_joints_vel_difference
+
+        return tau, des_joints_pos, des_joints_vel
