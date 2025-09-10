@@ -687,7 +687,7 @@ class WBInterface:
         # The swing controller is in the end-effector space
         for leg_id, leg_name in enumerate(self.legs_order):
             if (
-                self.current_contact[leg_id] == 0
+                self.current_contact[leg_id] == 0 and leg_name == 'FR'
             ):  # If in swing phase, compute the swing trajectory tracking control.
                 # print(f"Computing swing control for leg {leg_name}")
                 # print(self.frg.lift_off_positions[leg_name])
@@ -710,8 +710,8 @@ class WBInterface:
                     )
                 )
 
-                print(f"Leg {leg_name} - Desired Foot Position: {des_foot_pos[leg_name]}, Desired Foot Velocity: {des_foot_vel[leg_name]}")
-                input("Press enter to continue...")
+        #         print(f"Leg {leg_name} - Desired Foot Position: {des_foot_pos[leg_name]}, Desired Foot Velocity: {des_foot_vel[leg_name]}")
+        #         input("Press enter to continue...")
         # input("Press enter to continue")
 
 

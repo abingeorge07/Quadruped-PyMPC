@@ -101,12 +101,11 @@ class SRBDControllerInterface:
         elif(self.sim_param["controller"] == "DefaultController"):
                 if(self.num_joints == 8):
                     # Get the the GRFs, foothold, joint positions, velocities, and accelerations
-                    torque = self.controller.compute_control(state_current, ref_state)
-                    
+                    grfs, nmpc_footholds = self.controller.compute_control(state_current, ref_state)
 
-                    return torque
-                
+                    return grfs, nmpc_footholds
+
                 elif(self.num_joints == 12):
                     # Get the the GRFs, foothold, joint positions, velocities, and accelerations
-                    grfs, foot_pos = self.controller.compute_control(state_current, ref_state, contact_sequence, inertia)
-                    return grfs, foot_pos
+                    torques = self.controller.compute_control(state_current, ref_state, contact_sequence, inertia)
+                    return torques

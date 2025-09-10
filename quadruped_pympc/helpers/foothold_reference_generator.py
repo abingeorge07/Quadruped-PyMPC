@@ -7,6 +7,7 @@ from gym_quadruped.utils.quadruped_utils import LegsAttr
 from scipy.spatial.transform import Rotation
 
 from quad_pympc.quadruped_pympc.helpers.quadruped_utils import GaitType
+# from quadruped_utils import GaitType
 import config as cfg
 
 # Class for the generation of the reference footholds
@@ -205,7 +206,7 @@ class FootholdReferenceGenerator:
 
 
 if __name__ == "__main__":
-    m = mujoco.MjModel.from_xml_path("./../simulation/unitree_go1/scene.xml")
+    m = mujoco.MjModel.from_xml_path("./../../../models/scenes/flat/flat.xml")
     d = mujoco.MjData(m)
     mujoco.mj_step(m, d)
 
@@ -218,16 +219,27 @@ if __name__ == "__main__":
         ([d.body(FL_hip_id).xpos], [d.body(FR_hip_id).xpos], [d.body(RL_hip_id).xpos], [d.body(RR_hip_id).xpos])
     )
 
+    initial_feet_positions = LegsAttr(
+        FL=np.array([0.24, 0.134, 0.039]),
+        FR=np.array([0.24, -0.134, 0.039]),
+        RL=np.array([-0.24, 0.134, 0.039]),
+        RR=np.array([-0.24, -0.134, 0.039]),
+    )
+
+    hip_pos_attr = LegsAttr(FL=hip_pos[0][0], FR=hip_pos[1][0], RL=hip_pos[2][0], RR=hip_pos[3][0])
+
     print("hip_pos", hip_pos)
 
     stance_time = 0.5
-    linear_com_velocity = np.array([0.1, 0.0, 0.0])
-    desired_linear_com_velocity = np.array([0.1, 0.0, 0.0])
+    linear_com_velocity = np.array([0.0, 0.0, 0.0])
+    desired_linear_com_velocity = np.array([0.5, 0.0, 0.0])
     com_height = d.qpos[2]
 
-    foothold_generator = FootholdReferenceGenerator(stance_time)
+    base_pos = d.qpos[0:3]
+    base_ori = d.qpos[3:7]
+    foothold_generator = FootholdReferenceGenerator(stance_time, lift_off_positions=initial_feet_positions, hip_height=0.25)
     footholds_reference = foothold_generator.compute_footholds_reference(
-        linear_com_velocity[0:2], desired_linear_com_velocity[0:2], hip_pos, com_height
+       base_pos, np.array([0,0,0]),linear_com_velocity[0:2], desired_linear_com_velocity[0:2], hip_pos_attr, com_height
     )
     print("iniztial hip_pos: ", hip_pos)
     print("footholds_reference: ", footholds_reference)
