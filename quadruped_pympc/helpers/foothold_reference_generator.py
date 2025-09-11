@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     hip_pos_attr = LegsAttr(FL=hip_pos[0][0], FR=hip_pos[1][0], RL=hip_pos[2][0], RR=hip_pos[3][0])
 
-    print("hip_pos", hip_pos)
+    # print("hip_pos", hip_pos)
 
     stance_time = 0.5
     linear_com_velocity = np.array([0.0, 0.0, 0.0])
@@ -241,5 +241,5 @@ if __name__ == "__main__":
     footholds_reference = foothold_generator.compute_footholds_reference(
        base_pos, np.array([0,0,0]),linear_com_velocity[0:2], desired_linear_com_velocity[0:2], hip_pos_attr, com_height
     )
-    print("iniztial hip_pos: ", hip_pos)
-    print("footholds_reference: ", footholds_reference)
+    # print("iniztial hip_pos: ", hip_pos)
+    # print("footholds_reference: ", footholds_reference)

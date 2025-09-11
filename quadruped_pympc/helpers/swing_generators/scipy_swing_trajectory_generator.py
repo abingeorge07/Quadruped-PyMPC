@@ -97,7 +97,7 @@ class SwingTrajectoryGenerator:
             self.createCurve(early_stance_hitpoint, touch_down, early_stance_hitmoment)
             # self.plot_current_curve(hitmoment)
         else:
-            print(f"Lift off: {lift_off}, Touch down: {touch_down}")
+            # print(f"Lift off: {lift_off}, Touch down: {touch_down}")
             self.createCurve(lift_off, touch_down)
 
         position_x = self._curve_x(swing_time)

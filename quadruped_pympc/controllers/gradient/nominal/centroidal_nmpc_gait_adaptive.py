@@ -1224,8 +1224,8 @@ class Acados_NMPC_GaitAdaptive:
         self.batch_solver.solve()
         t_elapsed = time.time() - t0
 
-        print("time_python: ", t_elapsed2)
-        print("time_solver: ", t_elapsed)
+        # print("time_python: ", t_elapsed2)
+        # print("time_solver: ", t_elapsed)
 
         for n in range(self.batch):
             cost_single_qp = self.batch_solver.ocp_solvers[n].get_cost()
@@ -1238,7 +1238,7 @@ class Acados_NMPC_GaitAdaptive:
         best_freq_index = np.argmin(costs)
         best_freq = config.mpc_params["step_freq_available"][best_freq_index]
 
-        print("costs: ", costs)
+        # print("costs: ", costs)
         print("best_freq: ", best_freq)
 
         return costs, best_freq
