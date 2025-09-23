@@ -56,6 +56,9 @@ def plot_swing_mujoco(
     # Plot desired foot swing trajectory in Mujoco.
     NUM_TRAJ_POINTS = 6
 
+    print("Plotting swing trajectory in Mujoco...")
+    input("Press Enter to continue...")
+
     if geom_ids is None:
         geom_ids = LegsAttr(FL=[], FR=[], RL=[], RR=[])
         # Instantiate a new geometry
