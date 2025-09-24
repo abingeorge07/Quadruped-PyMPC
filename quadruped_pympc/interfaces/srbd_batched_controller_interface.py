@@ -39,6 +39,7 @@ class SRBDBatchedControllerInterface:
         pgg_duty_factor: float,
         pgg_gait_type: int,
         optimize_swing: int,
+        jacobians: np.ndarray = None,
     ) -> float:
         """Optimize the gait using the SRBD method
         TODO: remove the unused arguments, and not pass pgg but rather its values
@@ -76,7 +77,7 @@ class SRBDBatchedControllerInterface:
                 )
 
             costs, best_sample_freq = self.batched_controller.compute_batch_control(
-                state_current, ref_state, contact_sequence_temp
+                state_current, ref_state, contact_sequence_temp, inertia=inertia, jacobian=jacobians
             )
 
         return best_sample_freq

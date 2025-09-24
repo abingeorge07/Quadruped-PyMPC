@@ -184,6 +184,11 @@ class Acados_NMPC_Nominal:
         init_external_wrench = np.array([0, 0, 0, 0, 0, 0])
         init_inertia = config.inertia.reshape((9,))
         init_mass = np.array([config.mass])
+        init_FL_J = np.zeros((3, 3)).flatten()
+        init_FR_J = np.zeros((3, 3)).flatten()
+        init_RL_J = np.zeros((3, 3)).flatten()
+        init_RR_J = np.zeros((3, 3)).flatten()
+
 
         ocp.parameter_values = np.concatenate(
             (
@@ -195,6 +200,10 @@ class Acados_NMPC_Nominal:
                 init_external_wrench,
                 init_inertia,
                 init_mass,
+                init_FL_J,
+                init_FR_J,
+                init_RL_J,
+                init_RR_J
             )
         )
 
@@ -1144,6 +1153,7 @@ class Acados_NMPC_Nominal:
         external_wrenches=np.zeros((6,)),
         inertia=config.inertia.reshape((9,)),
         mass=config.mass,
+        jacobian=None,
     ):
 
 
@@ -1297,6 +1307,12 @@ class Acados_NMPC_Nominal:
             else:
                 external_wrenches_estimated_param = np.zeros((6,))
 
+
+            FL_jacobian = jacobian['FL']
+            FR_jacobian = jacobian['FR']
+            RL_jacobian = jacobian['RL']
+            RR_jacobian = jacobian['RR']
+
             param = np.array(
                 [
                     FL_contact_sequence[j],
@@ -1328,6 +1344,11 @@ class Acados_NMPC_Nominal:
                     inertia[7],
                     inertia[8],
                     mass,
+                    FL_jacobian,
+                    FR_jacobian,
+                    RL_jacobian,
+                    RR_jacobian,
+
                 ]
             )
             self.acados_ocp_solver.set(j, "p", copy.deepcopy(param))

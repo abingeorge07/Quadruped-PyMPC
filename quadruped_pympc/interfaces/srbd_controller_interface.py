@@ -57,7 +57,8 @@ class SRBDControllerInterface:
         ref_state: dict,
         contact_sequence: np.ndarray = None,
         inertia: np.ndarray = None,
-        external_wrenches: np.ndarray = np.zeros((6,))
+        external_wrenches: np.ndarray = np.zeros((6,)),
+        jacobians: np.ndarray = None,
     ):
         """Compute the control using the SRBD method
 
@@ -79,7 +80,7 @@ class SRBDControllerInterface:
         if(self.sim_param["controller"] == "NMPCController"):
             # Get the the GRFs, foothold, joint positions, velocities, and accelerations
             nmpc_GRFs, nmpc_footholds, nmpc_predicted_state, _ = self.controller.compute_control(
-                        state_current, ref_state, contact_sequence, inertia=inertia, external_wrenches=external_wrenches
+                        state_current, ref_state, contact_sequence, inertia=inertia, external_wrenches=external_wrenches, jacobian=jacobians
                     )
 
             nmpc_joints_pos = None

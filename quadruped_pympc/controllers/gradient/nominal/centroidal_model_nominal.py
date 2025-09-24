@@ -135,6 +135,12 @@ class Centroidal_Model_Nominal:
         self.inertia = cs.SX.sym("inertia", 9, 1)
         self.mass = cs.SX.sym("mass", 1, 1)
 
+        # Add foot Jacobians as parameters (to be used for torque computation if needed)
+        self.J_fl_param = cs.SX.sym("J_fl", 9, 1)
+        self.J_fr_param = cs.SX.sym("J_fr", 9, 1)
+        self.J_rl_param = cs.SX.sym("J_rl", 9, 1)
+        self.J_rr_param = cs.SX.sym("J_rr", 9, 1)
+
         self.gravity_constant = config.gravity_constant
 
         # Not so useful, i can instantiate a casadi function for the fd
@@ -147,6 +153,10 @@ class Centroidal_Model_Nominal:
             self.external_wrench,
             self.inertia,
             self.mass,
+            self.J_fl_param,
+            self.J_fr_param,
+            self.J_rl_param,
+            self.J_rr_param
         )
         fd = self.forward_dynamics(self.states, self.inputs, param)
         self.fun_forward_dynamics = cs.Function("fun_forward_dynamics", [self.states, self.inputs, param], [fd])
@@ -306,6 +316,25 @@ class Centroidal_Model_Nominal:
             linear_foot_vel_RR,
             integral_states,
         )
+    
+    # Torque computation method (if needed)
+    def compute_joint_torques(self):
+        f_fl = self.inputs[12:15]
+        f_fr = self.inputs[15:18]
+        f_rl = self.inputs[18:21]
+        f_rr = self.inputs[21:24]
+
+        J_fl = cs.reshape(self.J_fl_param, 3, 3)
+        J_fr = cs.reshape(self.J_fr_param, 3, 3)
+        J_rl = cs.reshape(self.J_rl_param, 3, 3)
+        J_rr = cs.reshape(self.J_rr_param, 3, 3)
+
+        tau_fl = J_fl.T @ f_fl
+        tau_fr = J_fr.T @ f_fr
+        tau_rl = J_rl.T @ f_rl
+        tau_rr = J_rr.T @ f_rr
+
+        return cs.vertcat(tau_fl, tau_fr, tau_rl, tau_rr)
 
     def export_robot_model(self) -> AcadosModel:
         """
@@ -323,6 +352,10 @@ class Centroidal_Model_Nominal:
             self.external_wrench,
             self.inertia,
             self.mass,
+            self.J_fl_param,
+            self.J_fr_param,
+            self.J_rl_param,
+            self.J_rr_param
         )
         f_expl = self.forward_dynamics(self.states, self.inputs, self.param)
         f_impl = self.states_dot - f_expl

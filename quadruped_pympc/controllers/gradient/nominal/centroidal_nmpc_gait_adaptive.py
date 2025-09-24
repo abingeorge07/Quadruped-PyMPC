@@ -48,6 +48,11 @@ class Acados_NMPC_GaitAdaptive:
         # Create the class of the centroidal model and instantiate the acados model
         self.centroidal_model = Centroidal_Model_Nominal()
         acados_model = self.centroidal_model.export_robot_model()
+
+        # print("State size: ", acados_model.x.size()[0])
+        # print("Input size: ", acados_model.u.size()[0])
+        # input("Press Enter to continue...")
+
         self.states_dim = acados_model.x.size()[0]
         self.inputs_dim = acados_model.u.size()[0]
 
@@ -190,6 +195,10 @@ class Acados_NMPC_GaitAdaptive:
         init_external_wrench = np.array([0, 0, 0, 0, 0, 0])
         init_inertia = config.inertia.reshape((9,))
         init_mass = np.array([config.mass])
+        init_FL_J = np.zeros((3, 3)).flatten()
+        init_FR_J = np.zeros((3, 3)).flatten()
+        init_RL_J = np.zeros((3, 3)).flatten()
+        init_RR_J = np.zeros((3, 3)).flatten()
 
         ocp.parameter_values = np.concatenate(
             (
@@ -201,6 +210,10 @@ class Acados_NMPC_GaitAdaptive:
                 init_external_wrench,
                 init_inertia,
                 init_mass,
+                init_FL_J,
+                init_FR_J,
+                init_RL_J,
+                init_RR_J,
             )
         )
 
@@ -277,6 +290,24 @@ class Acados_NMPC_GaitAdaptive:
             for i in range(len(time_steps)):
                 shooting_nodes[i + 1] = shooting_nodes[i] + time_steps[i]
             ocp.solver_options.shooting_nodes = shooting_nodes
+
+
+        # Adding torque computation and cost if needed
+        # ocp.model.cost_y_expr = cs.vertcat(ocp.model.x, ocp.model.u)
+        # tau_expr = self.centroidal_model.compute_joint_torques()
+        # ocp.model.cost_y_expr = cs.vertcat(ocp.model.cost_y_expr, tau_expr)
+
+        # # Extend weight matrix for torques
+        # torque_weights = np.ones(tau_expr.shape[0]) * 0.01  # adjust to taste
+        # ocp.cost.W = scipy.linalg.block_diag(ocp.cost.W, np.diag(torque_weights))
+
+        # # Reference stays zero (penalize torque magnitude)
+        # ocp.cost.yref = np.zeros(ocp.model.cost_y_expr.shape[0])
+
+        # # Make sure we're using NONLINEAR_LS, since torque depends on forces & Jacobians
+        # ocp.cost.cost_type = "NONLINEAR_LS"
+        # ocp.cost.cost_type_e = "NONLINEAR_LS"
+
 
         return ocp
 
@@ -1075,6 +1106,8 @@ class Acados_NMPC_GaitAdaptive:
         external_wrenches=np.zeros((6,)),
         inertia=config.inertia.reshape((9,)),
         mass=config.mass,
+        jacobian =None,
+        # Add jacobian here
     ):
         start = time.time()
 
@@ -1147,6 +1180,13 @@ class Acados_NMPC_GaitAdaptive:
             RL_contact_sequence = contact_sequence[n][2]
             RR_contact_sequence = contact_sequence[n][3]
 
+            FL_jacobian = jacobian["FL"]
+            FR_jacobian = jacobian["FR"]
+            RL_jacobian = jacobian["RL"]
+            RR_jacobian = jacobian["RR"]
+
+
+
             for j in range(self.horizon):
                 # Update the idx_ref_foot_to_assign. Every time there is a change in the contact phase
                 # between 1 and 0, it means that the leg go into swing and a new reference is needed!!!
@@ -1175,6 +1215,8 @@ class Acados_NMPC_GaitAdaptive:
 
             # Setting the reference to acados
             self.batch_solver.ocp_solvers[n].set(self.horizon, "yref", yref_N)
+
+        
 
             # Set the parameters to  acados
             for j in range(self.horizon):
@@ -1209,6 +1251,10 @@ class Acados_NMPC_GaitAdaptive:
                         inertia[7],
                         inertia[8],
                         mass,
+                        FL_jacobian,
+                        FR_jacobian,
+                        RL_jacobian,
+                        RR_jacobian,
                     ]
                 )
                 self.batch_solver.ocp_solvers[n].set(j, "p", param)
@@ -1227,6 +1273,7 @@ class Acados_NMPC_GaitAdaptive:
         # print("time_python: ", t_elapsed2)
         # print("time_solver: ", t_elapsed)
 
+
         for n in range(self.batch):
             cost_single_qp = self.batch_solver.ocp_solvers[n].get_cost()
             if n != 0:
@@ -1238,7 +1285,7 @@ class Acados_NMPC_GaitAdaptive:
         best_freq_index = np.argmin(costs)
         best_freq = config.mpc_params["step_freq_available"][best_freq_index]
 
-        # print("costs: ", costs)
+        print("costs: ", costs)
         print("best_freq: ", best_freq)
 
         return costs, best_freq
