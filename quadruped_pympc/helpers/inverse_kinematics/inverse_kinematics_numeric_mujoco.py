@@ -58,6 +58,24 @@ class InverseKinematicsNumeric:
         # Get feet body id
         self.feet_geom_id, self.feet_body_id = self.get_feet_body_id()
 
+        q = [
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0
+        ]
+
+        fl_Des = [0.2, 0.1, -0.3]
+        fr_Des = [0.2, -0.1, -0.3]
+        rl_Des = [-0.2, 0.1, -0.3]
+        rr_Des = [-0.2, -0.1, -0.3]
+
+        # dummySol = self.compute_solution(q, fl_Des, fr_Des, rl_Des, rr_Des)
+
+
     # Get the feet body ids
     def get_feet_body_id(self):
 
@@ -90,6 +108,9 @@ class InverseKinematicsNumeric:
         for leg in cfg.leg_names:
             mujoco_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, foot_names[leg])
             feet_pos[leg] = self.data.geom_xpos[mujoco_id]
+            print(f"Leg {leg}, mujoco id {mujoco_id}, feet pos: {feet_pos[leg]}")
+
+        # input("Press Enter to continue... from get_feet_positions_mujoco")
 
 
         return feet_pos
@@ -104,9 +125,11 @@ class InverseKinematicsNumeric:
         # Get the feet positions in world frame
         feet_pos = self.get_feet_positions_mujoco()
 
+
         for leg in cfg.leg_names:
             feet_trans_jac[leg] = np.zeros((3, self.model.nv))
             feet_rot_jac[leg] = np.zeros((3, self.model.nv))
+            print(f"Leg {leg}, feet pos: {feet_pos[leg]}")
             mujoco.mj_jac(
                 m=self.model,
                 d=self.data,
@@ -162,11 +185,19 @@ class InverseKinematicsNumeric:
             # Compute feet jacobian
             feet_jac, _ = self.get_feet_jacobians()
 
+            print(feet_jac["FL"])
+            # input("Press Enter to continue... from compute_solution")
 
             J_FL = feet_jac["FL"][:, 6:]
             J_FR = feet_jac["FR"][:, 6:]
             J_RL = feet_jac["RL"][:, 6:]
             J_RR = feet_jac["RR"][:, 6:]
+
+            print(f"J_fl: \n {J_FL}")
+            print(f"J_fr: \n {J_FR}")
+            print(f"J_rl: \n {J_RL}")
+            print(f"J_rr: \n {J_RR}")
+            # input("Press Enter to continue... from compute_solution")
 
             total_jac = np.vstack((J_FL, J_FR, J_RL, J_RR))
             total_err = 100*np.hstack((err_FL, err_FR, err_RL, err_RR))
@@ -185,5 +216,7 @@ class InverseKinematicsNumeric:
             #mujoco.mj_kinematics(self.model, self.env.mjData)
             #mujoco.mj_step(self.model, self.env.mjData)
 
+        # print(f"Final q_joint: \n {q_joint}")
+        # input("Press Enter to continue... from compute_solution")
         return q_joint
 
