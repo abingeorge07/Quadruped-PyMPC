@@ -80,6 +80,7 @@ class Acados_NMPC_GaitAdaptive:
         for stage in range(self.horizon + 1):
             for n in range(self.batch):
                 self.batch_solver.ocp_solvers[n].set(stage, "x", np.zeros((self.states_dim,)))
+
         for stage in range(self.horizon):
             for n in range(self.batch):
                 self.batch_solver.ocp_solvers[n].set(stage, "u", np.zeros((self.inputs_dim,)))
@@ -292,19 +293,26 @@ class Acados_NMPC_GaitAdaptive:
             ocp.solver_options.shooting_nodes = shooting_nodes
 
 
-        # Adding torque computation and cost if needed
-        # ocp.model.cost_y_expr = cs.vertcat(ocp.model.x, ocp.model.u)
+        # # Build tau_expr from contact forces & Jacobians
         # tau_expr = self.centroidal_model.compute_joint_torques()
-        # ocp.model.cost_y_expr = cs.vertcat(ocp.model.cost_y_expr, tau_expr)
 
-        # # Extend weight matrix for torques
-        # torque_weights = np.ones(tau_expr.shape[0]) * 0.01  # adjust to taste
+        # # Stage cost: penalize states, inputs, and torques
+        # ocp.model.cost_y_expr = cs.vertcat(ocp.model.x, ocp.model.u, tau_expr)
+
+        # # Torque weights
+        # n_tau = int(tau_expr.shape[0])   # should be 12
+        # torque_weights = np.ones(n_tau) * 0.01
         # ocp.cost.W = scipy.linalg.block_diag(ocp.cost.W, np.diag(torque_weights))
 
-        # # Reference stays zero (penalize torque magnitude)
-        # ocp.cost.yref = np.zeros(ocp.model.cost_y_expr.shape[0])
+        # # Reference
+        # ocp.cost.yref = np.zeros(int(ocp.model.cost_y_expr.shape[0]))
 
-        # # Make sure we're using NONLINEAR_LS, since torque depends on forces & Jacobians
+        # # Terminal cost: only states
+        # ocp.model.cost_y_expr_e = ocp.model.x
+        # ocp.cost.W_e = np.eye(int(ocp.model.cost_y_expr_e.shape[0]))
+        # ocp.cost.yref_e = np.zeros(int(ocp.model.cost_y_expr_e.shape[0]))
+
+        # # Cost type
         # ocp.cost.cost_type = "NONLINEAR_LS"
         # ocp.cost.cost_type_e = "NONLINEAR_LS"
 
@@ -1118,6 +1126,8 @@ class Acados_NMPC_GaitAdaptive:
 
         # Fill reference (self.states_dim+self.inputs_dim)
         idx_ref_foot_to_assign = np.array([0, 0, 0, 0])
+        # print(f"States Dim: {self.states_dim}, Input Dim: {self.inputs_dim}")
+        # input("Press Enter to continue...")
         yref = np.zeros(shape=(self.states_dim + self.inputs_dim,))
         yref[0:3] = reference["ref_position"]
         yref[3:6] = reference["ref_linear_velocity"]
@@ -1251,10 +1261,42 @@ class Acados_NMPC_GaitAdaptive:
                         inertia[7],
                         inertia[8],
                         mass,
-                        FL_jacobian,
-                        FR_jacobian,
-                        RL_jacobian,
-                        RR_jacobian,
+                        FL_jacobian[0],
+                        FL_jacobian[1],
+                        FL_jacobian[2],
+                        FL_jacobian[3],
+                        FL_jacobian[4],
+                        FL_jacobian[5],
+                        FL_jacobian[6],
+                        FL_jacobian[7],
+                        FL_jacobian[8],
+                        FR_jacobian[0],
+                        FR_jacobian[1],
+                        FR_jacobian[2],
+                        FR_jacobian[3],
+                        FR_jacobian[4],
+                        FR_jacobian[5],
+                        FR_jacobian[6],
+                        FR_jacobian[7],
+                        FR_jacobian[8],
+                        RL_jacobian[0],
+                        RL_jacobian[1],
+                        RL_jacobian[2],
+                        RL_jacobian[3],
+                        RL_jacobian[4],
+                        RL_jacobian[5],
+                        RL_jacobian[6],
+                        RL_jacobian[7],
+                        RL_jacobian[8],
+                        RR_jacobian[0],
+                        RR_jacobian[1],
+                        RR_jacobian[2],
+                        RR_jacobian[3],
+                        RR_jacobian[4],
+                        RR_jacobian[5],
+                        RR_jacobian[6],
+                        RR_jacobian[7],
+                        RR_jacobian[8],
                     ]
                 )
                 self.batch_solver.ocp_solvers[n].set(j, "p", param)
