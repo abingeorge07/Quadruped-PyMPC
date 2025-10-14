@@ -38,6 +38,8 @@ class VisualFootholdAdaptation:
             return self.footholds_adaptation, self.footholds_constraints
 
     def get_heightmap_coordinates_foothold_id(self, heightmaps, foothold_id, leg_name):
+        print("Foothold id: ", foothold_id)
+        input("Press enter to continue...")
         r = round(foothold_id.item() / heightmaps[leg_name].n)
         c = round(foothold_id.item() % heightmaps[leg_name].n)
 

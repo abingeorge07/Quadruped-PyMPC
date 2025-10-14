@@ -94,6 +94,7 @@ class FootholdReferenceGenerator:
         base_lin_vel_H = R_W2H @ base_xy_lin_vel
         ref_base_lin_vel_H = R_W2H @ ref_base_xy_lin_vel
 
+
         # Moving average of the base velocity
         self.base_vel_hist.append(base_lin_vel_H)
         base_vel_mvg = np.mean(list(self.base_vel_hist), axis=0)

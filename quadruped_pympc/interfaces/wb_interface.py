@@ -193,6 +193,7 @@ class WBInterface:
         contact_sequence = self.pgg.compute_contact_sequence(
             contact_sequence_dts=self.contact_sequence_dts, contact_sequence_lenghts=self.contact_sequence_lenghts
         )
+        # print(f"Contact sequence: {contact_sequence}")
 
         self.previous_contact = copy.deepcopy(self.current_contact)
         self.current_contact = np.array(
@@ -227,10 +228,21 @@ class WBInterface:
             com_height_nominal=cfg.sim_param['ref_z'],
         )
 
+        # print(f"Base pos: {base_pos}")
+        # print(f"Base ori: {base_ori_euler_xyz}")
+        # print(f"Base xy lin vel: {base_lin_vel[0:3]}")
+        # print(f"Ref base xy lin vel: {ref_base_lin_vel[0:3]}")
+        # print(f"Hip pos: {hip_pos}")
+        # print(f"com pos: {cfg.sim_param['ref_z']}")
+        # print(f"Ref feet pos: {ref_feet_pos}")
+        # input("Press enter to continue")
+
         # Adjust the footholds given the terrain -----------------------------------------------------
         if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
             time_adaptation = time.time()
             if self.stc.check_apex_condition(self.current_contact, interval=0.01) and self.vfa.initialized == False:
+                print(f"Apex detected for leg adaptation")
+                input("APEX DETECTED, press enter to continue...")
                 for leg_id, leg_name in enumerate(legs_order):
                     heightmaps[leg_name].update_height_map(ref_feet_pos[leg_name], yaw=base_ori_euler_xyz[2])
                 self.vfa.compute_adaptation(
@@ -253,8 +265,12 @@ class WBInterface:
             current_contact=self.current_contact,
         )
 
+        print(f"Terrain roll: {terrain_roll}, pitch: {terrain_pitch}, height: {terrain_height}")
+
         ref_pos = np.array([0, 0, cfg.hip_height])
         ref_pos[2] = cfg.sim_param["ref_z"] + terrain_height
+
+        print(f"First ref pos: {ref_pos}")
         
         # Rotate the reference base linear velocity to the terrain frame
         ref_base_lin_vel = R.from_euler("xyz", [terrain_roll, terrain_pitch, 0]).as_matrix() @ ref_base_lin_vel
@@ -274,6 +290,9 @@ class WBInterface:
         # print(f"com_pos: {com_pos}")
         # print(f"ref_pos: {ref_pos}")
         # input("Press Enter to continue...")
+
+        # print(f"Ref base lin vel (terrain frame): {ref_base_lin_vel}")
+        # print(f"Second Ref pos: {ref_pos}")
 
 
         if cfg.mpc_params['type'] != 'kinodynamic':
@@ -454,8 +473,7 @@ class WBInterface:
 
         Returns:
             LegsAttr: joint torques
-        """
-
+        """        
         # If we have optimized the gait, we set all the timing parameters
         if optimize_swing == 1:
             self.pgg.step_freq = np.array([best_sample_freq])[0]

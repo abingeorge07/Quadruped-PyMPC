@@ -74,6 +74,7 @@ class PeriodicGaitGenerator:
                 else:
                     contact[leg] = 0
 
+
         return contact
 
     def set_phase_signal(self, phase_signal: np.ndarray, init: np.ndarray | None = None):
@@ -92,6 +93,8 @@ class PeriodicGaitGenerator:
         return np.array(self._phase_signal)
 
     def compute_contact_sequence(self, contact_sequence_dts, contact_sequence_lenghts):
+
+
         # TODO: This function can be vectorized and computed with numpy vectorized operations
         if self.gait_type == GaitType.FULL_STANCE.value:
             contact_sequence = np.ones((4, self.horizon * 2))
@@ -101,7 +104,7 @@ class PeriodicGaitGenerator:
         else:
             t_init = np.array(self._phase_signal)
             init_init = np.array(self._init)
-
+            # breakpoint()
             contact_sequence = np.zeros((self.n_contact, self.horizon))
 
             # the first value is simply the current predicted contact by the timer
@@ -116,6 +119,9 @@ class PeriodicGaitGenerator:
                 dt = contact_sequence_dts[j]
                 contact_sequence[:, i] = self.run(dt, self.step_freq)
             self.set_phase_signal(t_init, init_init)
+
+            # breakpoint()
+
             return contact_sequence
 
     def set_full_stance(self):
