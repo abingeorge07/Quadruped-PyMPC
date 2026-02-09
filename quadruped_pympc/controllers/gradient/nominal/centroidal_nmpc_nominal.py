@@ -83,6 +83,11 @@ class Acados_NMPC_Nominal:
         nu = self.inputs_dim
         ny = nx + nu
 
+        # Force no AVX here
+        ocp.solver_options.c_flags = "-O2 -fPIC -mno-avx -mno-avx2 -mno-fma"
+        ocp.solver_options.cxx_flags = "-O2 -fPIC -mno-avx -mno-avx2 -mno-fma"
+
+
         # Set dimensions
         ocp.dims.N = self.horizon
 

@@ -64,12 +64,23 @@ class Acados_NMPC_GaitAdaptive:
         batch_ocp = self.ocp
         dir_path = os.path.dirname(os.path.realpath(__file__))
         batch_ocp.code_export_directory = dir_path + '/c_generated_code_gait_adaptive'
+        breakpoint()
         self.batch_solver = AcadosOcpBatchSolver(
             batch_ocp,
             self.batch,
             verbose=False,
             json_file=self.ocp.code_export_directory + "/centroidal_nmpc_batch" + ".json",
         )
+
+        # THIS IS THE CRITICAL PART
+        self.batch_solver.compile_flags = [
+            "-O2",
+            "-march=x86-64",
+            "-mno-avx",
+            "-mno-avx2",
+            "-mno-fma",
+            "-fno-tree-vectorize"
+        ]
 
         # Initialize solvers
         for stage in range(self.horizon + 1):
@@ -88,6 +99,10 @@ class Acados_NMPC_GaitAdaptive:
         nx = self.states_dim
         nu = self.inputs_dim
         ny = nx + nu
+
+        # Force no AVX here
+        ocp.solver_options.c_flags = "-O2 -fPIC -mno-avx -mno-avx2 -mno-fma"
+        ocp.solver_options.cxx_flags = "-O2 -fPIC -mno-avx -mno-avx2 -mno-fma"
 
         # Set dimensions
         ocp.dims.N = self.horizon
@@ -1082,6 +1097,7 @@ class Acados_NMPC_GaitAdaptive:
 
         # Perform the scaling of the states and the reference
         state, reference, constraint = self.perform_scaling(state, reference, constraint)
+        
 
         # Fill reference (self.states_dim+self.inputs_dim)
         idx_ref_foot_to_assign = np.array([0, 0, 0, 0])
@@ -1224,6 +1240,7 @@ class Acados_NMPC_GaitAdaptive:
         self.batch_solver.solve()
         t_elapsed = time.time() - t0
 
+
         # print("time_python: ", t_elapsed2)
         # print("time_solver: ", t_elapsed)
 
@@ -1240,5 +1257,7 @@ class Acados_NMPC_GaitAdaptive:
 
         # print("costs: ", costs)
         print("best_freq: ", best_freq)
+
+        breakpoint()
 
         return costs, best_freq

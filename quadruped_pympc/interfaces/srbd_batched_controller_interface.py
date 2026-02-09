@@ -75,6 +75,7 @@ class SRBDBatchedControllerInterface:
                     contact_sequence_lenghts=self.contact_sequence_lenghts,
                 )
 
+            breakpoint()
             costs, best_sample_freq = self.batched_controller.compute_batch_control(
                 state_current, ref_state, contact_sequence_temp
             )

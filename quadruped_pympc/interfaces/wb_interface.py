@@ -121,6 +121,7 @@ class WBInterface:
         simulation_dt: float,
         ref_base_lin_vel: np.ndarray,
         ref_base_ang_vel: np.ndarray,
+        break_here: bool,
     ):
         """Update the state and reference for the whole body controller, including the contact sequence, footholds, and terrain estimation.
 
@@ -241,8 +242,8 @@ class WBInterface:
         if cfg.sim_param['visual_foothold_adaptation'] != 'blind':
             time_adaptation = time.time()
             if self.stc.check_apex_condition(self.current_contact, interval=0.01) and self.vfa.initialized == False:
-                print(f"Apex detected for leg adaptation")
-                input("APEX DETECTED, press enter to continue...")
+                # print(f"Apex detected for leg adaptation")
+                # input("APEX DETECTED, press enter to continue...")
                 for leg_id, leg_name in enumerate(legs_order):
                     heightmaps[leg_name].update_height_map(ref_feet_pos[leg_name], yaw=base_ori_euler_xyz[2])
                 self.vfa.compute_adaptation(
@@ -265,15 +266,17 @@ class WBInterface:
             current_contact=self.current_contact,
         )
 
-        print(f"Terrain roll: {terrain_roll}, pitch: {terrain_pitch}, height: {terrain_height}")
+
+        # terrain_height = 0.0  # TO FIX REMOVE LATER
+            
 
         ref_pos = np.array([0, 0, cfg.hip_height])
         ref_pos[2] = cfg.sim_param["ref_z"] + terrain_height
 
-        print(f"First ref pos: {ref_pos}")
-        
+    
         # Rotate the reference base linear velocity to the terrain frame
         ref_base_lin_vel = R.from_euler("xyz", [terrain_roll, terrain_pitch, 0]).as_matrix() @ ref_base_lin_vel
+        
         if(terrain_pitch > 0.0):
             ref_base_lin_vel[2] = -ref_base_lin_vel[2]
         if(np.abs(terrain_pitch) > 0.2):
@@ -286,6 +289,17 @@ class WBInterface:
         # we modify the reference to bring the base at the desired height and not the CoM
         # print(f"ref_pos: {ref_pos}")
         ref_pos[2] -= base_pos[2] - (com_pos[2] + self.frg.com_pos_offset_w[2])
+
+        # if break_here:
+        #     print(f"Ref Pos: {ref_pos}")
+        #     print(f"Terrain Roll: {terrain_roll}, Terrain Pitch: {terrain_pitch}")
+        #     print(f"Terrain Height: {terrain_height}")
+        #     input("Press Enter to continue...")
+        
+        # in_break = input("Press Enter to continue...")
+        # if (in_break == 'b'):
+        #     breakpoint()
+
         # print(self.frg.com_pos_offset_w)
         # print(f"com_pos: {com_pos}")
         # print(f"ref_pos: {ref_pos}")
@@ -449,7 +463,7 @@ class WBInterface:
         nmpc_joints_vel,
         nmpc_joints_acc,
         nmpc_predicted_state,
-        mujoco_contact: np.ndarray = None,
+        break_here: bool = False,
     ) -> LegsAttr:
         """Compute the stance and swing torque.
 
@@ -474,6 +488,9 @@ class WBInterface:
         Returns:
             LegsAttr: joint torques
         """        
+
+        
+
         # If we have optimized the gait, we set all the timing parameters
         if optimize_swing == 1:
             self.pgg.step_freq = np.array([best_sample_freq])[0]
@@ -486,8 +503,8 @@ class WBInterface:
         # Update the Early Stance Detector for Reflexes
         self.esd.update_detection(feet_pos, self.last_des_foot_pos, lift_off=self.frg.lift_off_positions, touch_down=nmpc_footholds, 
                         swing_time=self.stc.swing_time, swing_period=self.stc.swing_period, 
-                        current_contact=self.current_contact, previous_contact=self.previous_contact, mujoco_contact=mujoco_contact,
-                        stc=self.stc)
+                        current_contact=self.current_contact, previous_contact=self.previous_contact,
+                        stc=self.stc, break_here=break_here)
 
 
         # Compute Stance Torque ---------------------------------------------------------------------------
@@ -496,6 +513,25 @@ class WBInterface:
         tau["RL"] = -np.matmul(feet_jac['RL'][:, legs_qvel_idx['RL']].T, nmpc_GRFs["RL"])
         tau["RR"] = -np.matmul(feet_jac['RR'][:, legs_qvel_idx['RR']].T, nmpc_GRFs["RR"])
 
+        # # Print the jacobians and GRFs for debugging
+        # print(f"Feet Jacobians:")
+        # print(f"FL: {feet_jac['FL'][:, legs_qvel_idx['FL']]}")
+        # print(f"FR: {feet_jac['FR'][:, legs_qvel_idx['FR']]}")
+        # print(f"RL: {feet_jac['RL'][:, legs_qvel_idx['RL']]}")
+        # print(f"RR: {feet_jac['RR'][:, legs_qvel_idx['RR']]}")
+        # print(f"NMPC GRFs:")
+        # print(f"FL: {nmpc_GRFs['FL']}")
+        # print(f"FR: {nmpc_GRFs['FR']}")
+        # print(f"RL: {nmpc_GRFs['RL']}")
+        # print(f"RR: {nmpc_GRFs['RR']}")
+
+        # print(f"Stance Torque:")
+        # print(f"FL: {tau['FL']}")
+        # print(f"FR: {tau['FR']}")
+        # print(f"RL: {tau['RL']}")
+        # print(f"RR: {tau['RR']}")
+
+        # breakpoint()
         # print(f"Current contact {self.current_contact}")
         # print(f"Tau: {tau}")
 
@@ -512,6 +548,8 @@ class WBInterface:
                     self.current_contact[leg_id] == 0
                 ):  # If in swing phase, compute the swing trajectory tracking control.
                     # print(f"Computing swing control for leg {leg_name}")
+                    # if break_here:
+                    #     breakpoint()
 
                     tau[leg_name], des_foot_pos[leg_name], des_foot_vel[leg_name] = (
                         self.stc.compute_swing_control_cartesian_space(
@@ -528,20 +566,23 @@ class WBInterface:
                             mass_matrix=legs_mass_matrix[leg_name],
                             early_stance_hitmoments=self.esd.hitmoments[leg_name],
                             early_stance_hitpoints=self.esd.hitpoints[leg_name],
+                            break_here=False,
                         )
                     )
+
+                    # breakpoint()
                 else:
                     des_foot_pos[leg_name] = nmpc_footholds[leg_name]
                     # des_foot_pos[leg_name] = self.frg.touch_down_positions[leg_name]
                     des_foot_vel[leg_name] = des_foot_vel[leg_name] * 0.0
-
                 # input("Press enter to continue")
+            # breakpoint()
         else:
             # The swing controller is in the joint space
             for leg_id, leg_name in enumerate(self.legs_order):
                 if (
                     self.current_contact[leg_id] == 0
-                ):  # If in swing phase, compute the swing trajectory tracking control.
+                ):  # If in swing phase, compute the swing trajectory tracking control.     
                     tau[leg_name], _, _ = self.stc.compute_swing_control_joint_space(
                         nmpc_joints_pos[leg_name],
                         nmpc_joints_vel[leg_name],
@@ -650,7 +691,6 @@ class WBInterface:
         nmpc_joints_vel,
         nmpc_joints_acc,
         nmpc_predicted_state,
-        mujoco_contact: np.ndarray = None,
     ) -> LegsAttr:
         """Compute the stance and swing torque.
 
@@ -682,9 +722,15 @@ class WBInterface:
         # Update the Early Stance Detector for Reflexes
         self.esd.update_detection(feet_pos, self.last_des_foot_pos, lift_off=self.frg.lift_off_positions, touch_down=nmpc_footholds, 
                         swing_time=self.stc.swing_time, swing_period=self.stc.swing_period, 
-                        current_contact=self.current_contact, previous_contact=self.previous_contact, mujoco_contact=mujoco_contact,
+                        current_contact=self.current_contact, previous_contact=self.previous_contact,
                         stc=self.stc)
 
+
+        # breakpoint()
+
+        for leg in cfg.leg_names:
+            if(len(nmpc_GRFs[leg]) < 3):
+                breakpoint()
 
         # Compute Stance Torque ---------------------------------------------------------------------------
         tau["FL"]= -np.matmul(feet_jac['FL'][:, legs_qvel_idx['FL']].T, nmpc_GRFs["FL"])
@@ -704,9 +750,8 @@ class WBInterface:
 
         # The swing controller is in the end-effector space
         for leg_id, leg_name in enumerate(self.legs_order):
-            if (
-                self.current_contact[leg_id] == 0 and leg_name == 'FR'
-            ):  # If in swing phase, compute the swing trajectory tracking control.
+            if (self.current_contact[leg_id] == 0):  
+                # If in swing phase, compute the swing trajectory tracking control.
                 # print(f"Computing swing control for leg {leg_name}")
                 # print(self.frg.lift_off_positions[leg_name])
                 # input("Press enter to contiue")

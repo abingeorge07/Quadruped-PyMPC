@@ -44,12 +44,26 @@ class TerrainEstimator:
         seg6 = feet_pos["RL"]
         seg9 = feet_pos["RR"]
 
+        # Print for debugging
+        # print(f"Yaw angle: {yaw}")
+        # print("Foot Positions (World Frame):")
+        # print(f"FL: {seg0}")
+        # print(f"FR: {seg3}")
+        # print(f"RL: {seg6}")
+        # print(f"RR: {seg9}")
+
         # Calculating differences
         # TODO: Feet position in base frame?
         front_difference = R_W2H @ (seg0 - base_position) - R_W2H @ (seg3 - base_position)
         back_difference = R_W2H @ (seg6 - base_position) - R_W2H @ (seg9 - base_position)
         left_difference = R_W2H @ (seg0 - base_position) - R_W2H @ (seg6 - base_position)
         right_difference = R_W2H @ (seg3 - base_position) - R_W2H @ (seg9 - base_position)
+
+        # Print for debugging
+        # print(f"Front Difference: {front_difference}")
+        # print(f"Back Difference: {back_difference}")
+        # print(f"Left Difference: {left_difference}")
+        # print(f"Right Difference: {right_difference}")
 
         # Calculating pitch and roll
         # TODO: Docstring
@@ -58,10 +72,14 @@ class TerrainEstimator:
             + np.arctan(np.abs(right_difference[2]) / np.abs(right_difference[0] + 0.001))
         ) * 0.5
 
+        # print(f"Computed pitch: {pitch}")
+
         roll = (
             np.arctan(np.abs(front_difference[2]) / np.abs(front_difference[1] + 0.001))
             + np.arctan(np.abs(back_difference[2]) / np.abs(back_difference[1] + 0.001))
         ) * 0.5
+
+        # print(f"Computed roll: {roll}")
 
         # Adjusting signs of pitch and roll TODO: Adjusting what and for what?
         if (front_difference[2] * 0.5 + back_difference[2] * 0.5) < 0:
@@ -69,6 +87,10 @@ class TerrainEstimator:
         if (left_difference[2] * 0.5 + right_difference[2] * 0.5) > 0:
             pitch = -pitch
 
+
+        # print(f"Terrain Roll after sign adjustment: {roll}")
+        # print(f"Terrain Pitch after sign adjustment: {pitch}")
+        
 
         if self.roll_activated:
             self.terrain_roll = self.terrain_roll * 0.99 + roll * 0.01
@@ -79,6 +101,10 @@ class TerrainEstimator:
             self.terrain_pitch = self.terrain_pitch * 0.99 + pitch * 0.01
         else:
             self.terrain_pitch = 0.0
+
+
+        # print(f"Terrain Roll (after filtering): {roll}")
+        # print(f"Terrain Pitch (after filtering): {pitch}")
 
         # Update the reference height given the foot in contact
         z_foot_FL = feet_pos["FL"][2]

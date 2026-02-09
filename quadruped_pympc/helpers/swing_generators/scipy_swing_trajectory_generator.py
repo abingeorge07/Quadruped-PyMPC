@@ -92,7 +92,9 @@ class SwingTrajectoryGenerator:
         self._curve_z_acc = self._curve_z_vel.derivative()
 
     def compute_trajectory_references(
-        self, swing_time: float, lift_off: np.array, touch_down: np.array, early_stance_hitmoment = -1, early_stance_hitpoint = None) -> (np.array, np.array, np.array):
+        self, swing_time: float, lift_off: np.array, touch_down: np.array, early_stance_hitmoment = -1, early_stance_hitpoint = None, break_here=False) -> (np.array, np.array, np.array):
+        
+
         if early_stance_hitpoint is not None:
             self.createCurve(early_stance_hitpoint, touch_down, early_stance_hitmoment)
             # self.plot_current_curve(hitmoment)
@@ -106,6 +108,7 @@ class SwingTrajectoryGenerator:
 
         position = np.array([position_x, position_y, position_z])
 
+
         velocity_x = self._curve_x_vel(swing_time)
         velocity_y = self._curve_y_vel(swing_time)
         velocity_z = self._curve_z_vel(swing_time)
@@ -117,6 +120,9 @@ class SwingTrajectoryGenerator:
         acceleration_z = self._curve_z_acc(swing_time)
 
         acceleration = np.array([acceleration_x, acceleration_y, acceleration_z])
+
+        # print(f"Swing time: {swing_time}, Position: {position}, Velocity: {velocity}, Acceleration: {acceleration}")
+        # breakpoint()
 
         return position, velocity, acceleration
 

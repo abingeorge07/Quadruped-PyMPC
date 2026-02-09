@@ -40,7 +40,7 @@ class SwingTrajectoryController:
         self.swing_period = swing_period
 
     def compute_swing_control_cartesian_space(
-        self, leg_id, q_dot, J, J_dot, lift_off, touch_down, foot_pos, foot_vel, passive_force, h, mass_matrix, early_stance_hitmoments, early_stance_hitpoints
+        self, leg_id, q_dot, J, J_dot, lift_off, touch_down, foot_pos, foot_vel, passive_force, h, mass_matrix, early_stance_hitmoments, early_stance_hitpoints, break_here=False
     ):
         """TODO: Docstring.
 
@@ -63,9 +63,14 @@ class SwingTrajectoryController:
         -------
 
         """
+
+        # if break_here:
+        #     breakpoint()
+
         # Compute trajectory references
         des_foot_pos, des_foot_vel, des_foot_acc = self.swing_generator.compute_trajectory_references(
-            self.swing_time[leg_id], lift_off, touch_down, early_stance_hitmoments, early_stance_hitpoints
+            self.swing_time[leg_id], lift_off, touch_down, early_stance_hitmoments, early_stance_hitpoints,
+            break_here=break_here
         )
 
         err_pos = des_foot_pos - foot_pos
@@ -77,6 +82,17 @@ class SwingTrajectoryController:
         accelleration = des_foot_acc + self.position_gain_fb * (err_pos) + self.velocity_gain_fb * (err_vel)
 
         accelleration = accelleration.reshape((3,))
+
+        # print(f"Leg {leg_id} Swing Control:")
+        # print(f"  Desired Foot Pos: {des_foot_pos}")
+        # print(f"  Current Foot Pos: {foot_pos}")
+        # print(f"  Position Error: {err_pos}")
+        # print(f"  Desired Foot Vel: {des_foot_vel}")
+        # print(f"  Current Foot Vel: {foot_vel}")
+        # print(f"  Velocity Error: {err_vel}")
+        # print(f"  Desired Foot Acc: {des_foot_acc}")
+        # print(f"  accelleration {accelleration}")
+        # breakpoint()
 
         # Compute inertia matrix in task space.
         # Mass Matrix and centrifugal missing

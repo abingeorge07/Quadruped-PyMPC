@@ -40,8 +40,12 @@ class SRBDControllerInterface:
 
         elif self.sim_param["controller"] == "DefaultController":
             if(cfg.robot_params['num_joints'] == 12):   
-                from controllers.foothold_planner.defaultController import DefaultController
-                self.controller = DefaultController(self.gait_phase)
+                # from controllers.foothold_planner.defaultController import DefaultController
+                from controllers.foothold_planner.defaultController_quasi import simple_walk
+                
+                # self.controller = DefaultController(self.gait_phase)
+                self.controller = simple_walk(self.gait_phase, morphology=cfg.robot_params['morphology'])
+
             elif(cfg.robot_params['num_joints'] == 8):
                 from controllers.foothold_planner.dof_8.walk_main import simple_walk
                 self.controller = simple_walk(self.gait_phase, morphology=cfg.robot_params['morphology'])
@@ -107,5 +111,7 @@ class SRBDControllerInterface:
 
                 elif(self.num_joints == 12):
                     # Get the the GRFs, foothold, joint positions, velocities, and accelerations
-                    torques = self.controller.compute_control(state_current, ref_state, contact_sequence, inertia)
+                    # grfs, nmpc_footholds = self.controller.compute_control(state_current, ref_state, contact_sequence, inertia=inertia)
+                    # Get the the GRFs, foothold, joint positions, velocities, and accelerations
+                    torques = self.controller.compute_control(state_current, ref_state)
                     return torques

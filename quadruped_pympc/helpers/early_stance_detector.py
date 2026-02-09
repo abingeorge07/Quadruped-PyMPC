@@ -36,8 +36,8 @@ class EarlyStanceDetector:
     def update_detection(self, feet_pos: LegsAttr, des_feet_pos: LegsAttr, 
                          lift_off: LegsAttr, touch_down: LegsAttr, 
                          swing_time: list, swing_period: float, 
-                         current_contact, previous_contact, mujoco_contact,
-                         stc):
+                         current_contact, previous_contact,
+                         stc, break_here=False):
         """ 
         Update the early stance detector.
         
@@ -50,6 +50,11 @@ class EarlyStanceDetector:
             swing_period : Duration of the swing phase.
             current_contact : Current contact state of the legs.
         """
+
+        # if (break_here):
+        #     breakpoint()
+
+
         if not self.activated:
             for leg_id,leg_name in enumerate(self.legs_order):
                 self.early_stance[leg_name] = False
@@ -87,33 +92,6 @@ class EarlyStanceDetector:
                         self.hitmoments[leg_name] = -1.0
                         self.hitpoints[leg_name] = None
                         
-            elif self.trigger_mode == 'geom_contact':
-                self.contact = mujoco_contact
-                for leg_id,leg_name in enumerate(self.legs_order):
-                    contact_points = self.contact_points(leg_name)
-                    disp = touch_down[leg_name] - lift_off[leg_name]
-                    for contact_point in contact_points:
-                        # if np.linalg.norm(contact_point - touch_down[leg_name]) < EARLY_STANCE_THRESHOLD or np.linalg.norm(contact_point - lift_off[leg_name]) < EARLY_STANCE_THRESHOLD:
-                        if swing_time[leg_id] < self.early_stance_time_threshold or swing_time[leg_id] > swing_period - self.early_stance_time_threshold:
-                            self.early_stance[leg_name] = False  # reset early stance if contact point is close to touch down position or lift off position
-                            break
-                        else:
-                            local_disp = (contact_point - feet_pos[leg_name]).squeeze()
-                            if self.early_stance[leg_name] == False:
-                                if np.arccos(np.dot(disp, local_disp) / (np.linalg.norm(disp) * np.linalg.norm(local_disp))) < np.pi/3: 
-                                    self.hitpoints[leg_name] = contact_point.copy()
-                                    self.hitmoments[leg_name] = swing_time[leg_id]
-                                    self.early_stance[leg_name] = True  # acos( disp dot local_disp / |disp| |local_disp|) < 60°
-                                    self.gait_cycles_after_reflex_height_enanchement = 0
-                                    break
-                                else:
-                                    self.early_stance[leg_name] = False
-                                    self.hitmoments[leg_name] = -1.0
-                                    self.hitpoints[leg_name] = None
-                    if self.early_stance[leg_name] != True:
-                        self.hitmoments[leg_name] = -1.0
-                        self.hitpoints[leg_name] = None
-
 
         if(self.use_reflex_next_steps_height_enhancement):
             for leg_id,leg_name in enumerate(self.legs_order):
